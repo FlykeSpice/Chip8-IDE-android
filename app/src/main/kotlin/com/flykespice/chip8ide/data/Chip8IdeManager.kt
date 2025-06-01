@@ -7,9 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.FileOutputStream
 import java.io.OutputStream
-import java.lang.IllegalStateException
-import java.util.*
-import kotlin.collections.ArrayList
 
 //Manager for Chip8's Ide
 class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
@@ -159,12 +156,11 @@ class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
                 .split(',')
 
             if (literals.size > remainingHeight) {
-                newLines.removeLast()
+                newLines.removeAt(newLines.lastIndex)
                 newLines.add("db "+literals.slice(remainingHeight until literals.size).joinToString(","))
-
                 remainingHeight = 0
             } else {
-                newLines.removeLast()
+                newLines.removeAt(newLines.lastIndex)
                 remainingHeight -= literals.size
             }
 
