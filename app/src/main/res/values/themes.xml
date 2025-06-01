@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Chip8IDE" parent="android:Theme.Material.NoActionBar.Fullscreen">
+<!--
+        <item name="android:statusBarColor">@color/purple_700</item>
+-->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>
