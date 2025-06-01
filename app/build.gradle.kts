@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.flykespice.chip8ide"
-        minSdk = 23 //api level 23 because of AudioTrack
+        minSdk = 26 //api level 26 because that is the min supported to use Match Groups in Kotlin
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
