@@ -1,13 +1,9 @@
 package com.flykespice.chip8ide.chip8
 
-import android.util.Log
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -18,10 +14,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.random.nextInt
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.measureTime
-import kotlin.time.toDuration
 
 class Chip8(
     val onScreenUpdate: (BooleanArray) -> Unit,
@@ -30,19 +23,13 @@ class Chip8(
 
     private object CpuRegisters {
         var v = IntArray(16)
-        var I : Int = 0
+        var I: Int = 0
 
-        var vf : Boolean = false
-            set(value) {
-                field = value
-                v[0xF] = if(value) 1 else 0
-            }
+        val stack = ArrayList<Int>(16)
+        var pc: Int = 0
 
-        var stack = ArrayList<Int>(16)
-        var pc : Int = 0
-
-        var dt : Int = 0
-        var st : Int = 0
+        var dt: Int = 0
+        var st: Int = 0
 
         fun reset() {
             v.fill(0)
@@ -58,11 +45,11 @@ class Chip8(
 
     private var key = BooleanArray(16)
 
-    private var loaded : Boolean = false
+    private var loaded: Boolean = false
     var paused: Boolean = true
         private set
 
-    private var ram = IntArray(0x1000)
+    private val ram = IntArray(0x1000)
     private var rom = IntArray(0)
 
 
@@ -139,6 +126,44 @@ class Chip8(
             "Fx55" to 675.3251f, //Average
             "Fx65" to 675.3251f, //Average
         ).mapValues { with(Duration) { it.value.toDouble().microseconds } }
+
+        val mnemonics = mapOf(
+            "00E0" to "CLS",
+            "00EE" to "RET",
+            "0nnn" to "SYS addr",
+            "1nnn" to "JP addr",
+            "2nnn" to "CALL addr",
+            "3xkk" to "SE Vx, byte",
+            "4xkk" to "SNE Vx, byte",
+            "5xy0" to "SE Vx, Vy",
+            "6xkk" to "LD Vx, byte",
+            "7xkk" to "ADD Vx, byte",
+            "8xy0" to "LD Vx, Vy",
+            "8xy1" to "OR Vx, Vy",
+            "8xy2" to "AND Vx, Vy",
+            "8xy3" to "XOR Vx, Vy",
+            "8xy4" to "ADD Vx, Vy",
+            "8xy5" to "SUB Vx, Vy",
+            "8xy6" to "SHR Vx",
+            "8xy7" to "SUBN Vx, Vy",
+            "8xyE" to "SHL Vx",
+            "9xy0" to "SNE Vx, Vy",
+            "Annn" to "LD I, addr",
+            "Bnnn" to "JP V0, addr",
+            "Cxkk" to "RND Vx, byte",
+            "Dxyn" to "DRW Vx, Vy, nibble",
+            "Ex9E" to "SKP Vx",
+            "ExA1" to "SKNP Vx",
+            "Fx07" to "LD Vx, DT",
+            "Fx0A" to "LD Vx, K",
+            "Fx15" to "LD DT, Vx",
+            "Fx18" to "LD ST, Vx",
+            "Fx1E" to "ADD I, Vx",
+            "Fx29" to "LD F, Vx",
+            "Fx33" to "LD B, Vx",
+            "Fx55" to "LD [I], Vx",
+            "Fx65" to "LD Vx, [I]",
+        )
     }
 
     //Encode chip-8 instruction mnemonics to regex
@@ -150,7 +175,7 @@ class Chip8(
             .replace("y","\\p{XDigit}")
             .replace("n", "\\p{XDigit}")
 
-    private var display = BooleanArray(64*32)
+    private val display = BooleanArray(64*32)
 
     var clockRate = 500
         set(value) {
@@ -260,21 +285,16 @@ class Chip8(
 
         launch {
             //var elapsed: Duration = 0.seconds
-            var duration: Duration = 0.seconds
-
+            var duration: Duration
             val clockDuration = (1.toDouble() / clockRate.toDouble()).seconds
             while (isActive) {
-                    key = pollKeys()
-                    keyPressed = key.indexOfFirst { it }
+                key = pollKeys()
+                keyPressed = key.indexOfFirst { it }
 
-                    duration = decode(ram[CpuRegisters.pc].shl(8) + ram[CpuRegisters.pc + 1])
-                    CpuRegisters.pc += 2
+                duration = decode(ram[CpuRegisters.pc].shl(8) + ram[CpuRegisters.pc + 1])
+                CpuRegisters.pc += 2
 
-                if (originalMode) {
-                    delay(duration)
-                } else {
-                    delay(clockDuration)
-                }
+                delay(if (originalMode) duration else clockDuration)
             }
         }
     }
@@ -304,11 +324,11 @@ class Chip8(
             mainJob.cancel()
     }
 
-    var pollKeys : () -> BooleanArray = { BooleanArray(16) }
+    var pollKeys: () -> BooleanArray = { BooleanArray(16) }
 
     private var keyPressed = -1
 
-    var patterns = Common.mnemonics.keys.map { it to opcodeToPattern(it) }
+    private val patterns = mnemonics.keys.map { it to opcodeToPattern(it) }
 
     private fun decode(opcode : Int): Duration {
 
@@ -318,18 +338,16 @@ class Chip8(
                 opcode.toString(16).uppercase().padStart(4,'0'))
         }?.first
 
-        //Log.d("","addr: ${CpuRegisters.pc.toString(16)} $pattern ${Common.mnemonics[pattern]?.replace("addr", (opcode and 0xfff).toString(16))}")
-
         val nnn = opcode and 0xFFF
-        val x = (opcode shr 2*4) and 0xF
-        val y = (opcode shr 1*4) and 0xF
-        val kk = opcode and 0xFF
-        val n = opcode and 0xF
+        val x   = (opcode shr 2*4) and 0xF
+        val y   = (opcode shr 1*4) and 0xF
+        val kk  = opcode and 0xFF
+        val n   = opcode and 0xF
 
-        val v = CpuRegisters.v
+        val v     = CpuRegisters.v
         val stack = CpuRegisters.stack
 
-        var I: Int = CpuRegisters.I
+        var I  = CpuRegisters.I
         var pc = CpuRegisters.pc
         var dt = CpuRegisters.dt
         var st = CpuRegisters.st

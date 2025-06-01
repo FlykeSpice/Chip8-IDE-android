@@ -18,7 +18,7 @@ class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
         onSoundStateChange = onSoundStateChange
     )
 
-    private lateinit var  rom: IntArray
+    private lateinit var rom: IntArray
 
     private val _code = MutableStateFlow("")
     val code = _code.asStateFlow()

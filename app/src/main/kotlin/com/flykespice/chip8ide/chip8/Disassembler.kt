@@ -2,7 +2,7 @@ package com.flykespice.chip8ide.chip8
 
 import java.util.regex.Pattern
 
-private fun opcodeToPattern(opcode : String) =
+private fun opcodeToPattern(opcode: String) =
     opcode
         .replace("x","\\p{XDigit}")
         .replace("nnn", "\\p{XDigit}{3}")
@@ -45,7 +45,7 @@ object Disassembler {
 
             lateinit var pair: Map.Entry<String, String>
             try {
-                pair = Common.mnemonics.firstNotNullOf {
+                pair = Chip8.mnemonics.firstNotNullOf {
                     if (Pattern.matches(
                             opcodeToPattern(it.key),
                             opcode.toString(16).uppercase().padStart(4, '0')
@@ -135,7 +135,7 @@ object Disassembler {
         }
     }
 
-    fun disassemble(rom: IntArray) : String {
+    fun disassemble(rom: IntArray): String {
         val info = DisassemblyInfo()
         recursiveDisassemble(rom, 0x200, info)
 

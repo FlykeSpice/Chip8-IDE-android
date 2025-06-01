@@ -79,7 +79,7 @@ object Assembler {
             .replace("[i]", "\\[i\\]")
             .replace(" ", "\\s+")
 
-    /*private*/ val table = Common.mnemonics.mapValues { (_, value) -> Regex(mnemonicToPattern(value.lowercase())) }.toList()
+    /*private*/ val table = Chip8.mnemonics.mapValues { (_, value) -> Regex(mnemonicToPattern(value.lowercase())) }.toList()
 
     data class ParsingError(override val message: String, val line: Int): Throwable(message)
 
