@@ -113,7 +113,6 @@ private fun MainScreenPreview() {
 
 private enum class OpenedDialog { newFile, openFile, exportFile, saveFile, newSprite, none }
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
