@@ -1,14 +1,7 @@
 package com.flykespice.chip8ide.chip8
 
+import com.flykespice.chip8ide.chip8.Chip8.Companion.opcodeToPattern
 import java.util.regex.Pattern
-
-private fun opcodeToPattern(opcode: String) =
-    opcode
-        .replace("x","\\p{XDigit}")
-        .replace("nnn", "\\p{XDigit}{3}")
-        .replace("kk", "\\p{XDigit}{2}")
-        .replace("y","\\p{XDigit}")
-        .replace("n", "\\p{XDigit}")
 
 object Disassembler {
     //Encode chip-8 instruction mnemonics to regex
@@ -47,7 +40,7 @@ object Disassembler {
             try {
                 pair = Chip8.mnemonics.firstNotNullOf {
                     if (Pattern.matches(
-                            opcodeToPattern(it.key),
+                            it.key.opcodeToPattern(),
                             opcode.toString(16).uppercase().padStart(4, '0')
                         )
                     ) it else null

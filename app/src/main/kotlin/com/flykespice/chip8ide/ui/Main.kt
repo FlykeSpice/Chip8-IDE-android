@@ -65,15 +65,14 @@ import androidx.navigation.compose.rememberNavController
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.abs
 
 @Composable
 private fun MainSnackbar(
-    snackbarHostState: SnackbarHostState,
-    navController: NavController, ideState: MutableState<IdeState>,
+    ideState: IdeState,
     paddingValues: PaddingValues
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
 
     SnackbarHost(
         hostState = snackbarHostState,
@@ -83,21 +82,9 @@ private fun MainSnackbar(
             .imePadding()
     )
 
-    when (val state = ideState.value) {
-        is IdeState.idle -> {}
-
-        is IdeState.assembling -> LaunchedEffect(snackbarHostState) {
-            snackbarHostState.showSnackbar("Assembling...")
-        }
-
-        is IdeState.success -> LaunchedEffect(snackbarHostState) {
-            snackbarHostState.showSnackbar("Successfully assembled!")
-            ideState.value = IdeState.idle()
-        }
-
-        is IdeState.error -> LaunchedEffect(snackbarHostState) {
-            snackbarHostState.showSnackbar("Error: ${state.message} at ${state.line}")
-            ideState.value = IdeState.idle()
+    LaunchedEffect(ideState) {
+        if (ideState !is IdeState.idle) {
+            snackbarHostState.showSnackbar(ideState.message)
         }
     }
 }
@@ -106,7 +93,6 @@ private fun MainSnackbar(
 @Preview
 @Composable
 private fun MainScreenPreview() {
-    val dummy = MutableStateFlow(null)
     val chip8ViewModel = Chip8ViewModel(Chip8IdeManager({}), {}, {}, {})
     MainScreen(chip8ViewModel = chip8ViewModel, onNavigate = {})
 }
@@ -121,14 +107,12 @@ fun MainScreen(
     onNavigate: (String) -> Unit,
     currentSpriteLabel: String? = null,
     currentSpriteData: BooleanArray = BooleanArray(0),
-    onSpriteEdit: (String, BooleanArray) -> Unit = {_, _ ->}
 ) {
     val navController = rememberNavController()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     var openedDialog by remember { mutableStateOf(OpenedDialog.none) }
 
-    var currentLabel by remember { mutableStateOf<String?>(currentSpriteLabel) }
+    var currentLabel by remember { mutableStateOf(currentSpriteLabel) }
     var currentSprite by remember { mutableStateOf(currentSpriteData) }
 
     when (openedDialog) {
@@ -241,7 +225,13 @@ fun MainScreen(
             )
         },
         bottomBar = { MainBottomAppBar(navController) },
-        snackbarHost = { MainSnackbar(snackbarHostState, navController, chip8ViewModel.ideState, PaddingValues(0.dp)) },
+        snackbarHost = {
+            val ideState by chip8ViewModel.ideState.collectAsState()
+            MainSnackbar(
+                ideState = ideState,
+                paddingValues = PaddingValues(0.dp)
+            )
+       },
         floatingActionButton = {
             MainFloatingActionButton(destination = currentDestination.value?.destination?.route, onClicked = {
                 val destination = currentDestination.value!!.destination.route
@@ -326,12 +316,11 @@ fun MainScreen(
 //                }
 
                 val code by chip8ViewModel.code.collectAsState()
-
                 val sprites = remember {
                     getSprites(
                         _code = code,
                         onError = { err, line ->
-                            chip8ViewModel.ideState.value = IdeState.error(err, line)
+                            chip8ViewModel.setIdeState(IdeState.error(err, line))
                             Log.e("", "sprite error: $err at $line")
                         }
                     )

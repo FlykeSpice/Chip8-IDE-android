@@ -16,13 +16,22 @@ import kotlin.random.nextInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Chip-8 emulator
+ * @param onScreenUpdate lambda to be called whenever screen is updated
+ * @param onBeepStateChange lambda to be called whenever beeper state changes
+ */
 class Chip8(
     val onScreenUpdate: (BooleanArray) -> Unit,
-    val onSoundStateChange: (Boolean) -> Unit
+    val onBeepStateChange: (Boolean) -> Unit
 ) {
 
     private object CpuRegisters {
         var v = IntArray(16)
+        var vf: Boolean
+            get() = v[0xf] != 0
+            set(value) { v[0xf] = if (value) 1 else 0 }
+
         var I: Int = 0
 
         val stack = ArrayList<Int>(16)
@@ -43,20 +52,22 @@ class Chip8(
         }
     }
 
-    private var key = BooleanArray(16)
+    private val display = BooleanArray(64*32)
+
+    val key = BooleanArray(16)
+    private var keyPressed = -1
 
     private var loaded: Boolean = false
     var paused: Boolean = true
         private set
 
-    private val ram = IntArray(0x1000)
+    private val ram = IntArray(4096)
     private var rom = IntArray(0)
-
 
     private var originalMode = false
 
     companion object {
-        const val FPS = 1.0/60
+        private const val FPS = 1.0/60
 
         private val digits = intArrayOf(
             0xF0,0x90,0x90,0x90,0xF0, //0
@@ -164,18 +175,20 @@ class Chip8(
             "Fx55" to "LD [I], Vx",
             "Fx65" to "LD Vx, [I]",
         )
+
+        /**
+         * Encode a chip-8 instruction opcode to regex pattern
+         */
+        fun String.opcodeToPattern() =
+            this
+                .replace("x","\\p{XDigit}")
+                .replace("nnn", "\\p{XDigit}{3}")
+                .replace("kk", "\\p{XDigit}{2}")
+                .replace("y","\\p{XDigit}")
+                .replace("n", "\\p{XDigit}")
+
+        private val patterns = mnemonics.keys.map { it to it.opcodeToPattern() }
     }
-
-    //Encode chip-8 instruction mnemonics to regex
-    private fun opcodeToPattern(opcode : String) =
-        opcode
-            .replace("x","\\p{XDigit}")
-            .replace("nnn", "\\p{XDigit}{3}")
-            .replace("kk", "\\p{XDigit}{2}")
-            .replace("y","\\p{XDigit}")
-            .replace("n", "\\p{XDigit}")
-
-    private val display = BooleanArray(64*32)
 
     var clockRate = 500
         set(value) {
@@ -199,20 +212,23 @@ class Chip8(
             ram[0x200+i] = rom[i]
 
         key.fill(false)
-
         keyPressed = -1
 
         microseconds = 0.0f
         lastPc = 0x200
     }
 
-    fun load(_rom : IntArray) {
+    fun load(rom: IntArray) {
+        require(rom.size > (4096-513)) {
+            "Chip-8 rom size ${rom.size} is larger than interpreter memory size ${4096-513}"
+        }
+
         if (mainJob.isActive) {
             //throw IllegalStateException("Attempt to load rom while thread is running. You should stop() first before loading")
             mainJob.cancel()
         }
 
-        rom = _rom.copyOf()
+        this.rom = rom.copyOf()
         loaded = true
         reset()
     }
@@ -233,7 +249,6 @@ class Chip8(
         if (CpuRegisters.dt > 0)
             CpuRegisters.dt--
 
-        key = pollKeys()
         keyPressed = key.indexOfFirst { it }
 
         //Cosmac-VIP emulation mode?
@@ -276,7 +291,7 @@ class Chip8(
                 if (CpuRegisters.st > 0)
                     CpuRegisters.st--
                 else
-                    onSoundStateChange(false)
+                    onBeepStateChange(false)
 
                 onScreenUpdate(display.copyOf())
                 delay(16)
@@ -288,7 +303,6 @@ class Chip8(
             var duration: Duration
             val clockDuration = (1.toDouble() / clockRate.toDouble()).seconds
             while (isActive) {
-                key = pollKeys()
                 keyPressed = key.indexOfFirst { it }
 
                 duration = decode(ram[CpuRegisters.pc].shl(8) + ram[CpuRegisters.pc + 1])
@@ -309,7 +323,7 @@ class Chip8(
     }
 
     private var mainJob: Job  = Job()
-    @OptIn(DelicateCoroutinesApi::class)
+    @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
     fun pause(flag: Boolean) {
         paused = flag
         if (paused && mainJob.isActive) {
@@ -324,13 +338,7 @@ class Chip8(
             mainJob.cancel()
     }
 
-    var pollKeys: () -> BooleanArray = { BooleanArray(16) }
-
-    private var keyPressed = -1
-
-    private val patterns = mnemonics.keys.map { it to opcodeToPattern(it) }
-
-    private fun decode(opcode : Int): Duration {
+    private fun decode(opcode : Int): Duration = CpuRegisters.run {
 
         val pattern = patterns.firstOrNull { (_, pattern) ->
             Pattern.matches(
@@ -343,15 +351,6 @@ class Chip8(
         val y   = (opcode shr 1*4) and 0xF
         val kk  = opcode and 0xFF
         val n   = opcode and 0xF
-
-        val v     = CpuRegisters.v
-        val stack = CpuRegisters.stack
-
-        var I  = CpuRegisters.I
-        var pc = CpuRegisters.pc
-        var dt = CpuRegisters.dt
-        var st = CpuRegisters.st
-        var vf = CpuRegisters.v[0xF] != 0
 
         when(pattern) {
             "00E0" -> { display.fill(false)}
@@ -411,7 +410,7 @@ class Chip8(
             "Fx15" -> { dt = v[x]}
             "Fx18" -> {
                 st = v[x]
-                onSoundStateChange(true)
+                onBeepStateChange(true)
             }
             "Fx1E" -> { I = (I + v[x]) and 0xFFF}
 
@@ -421,15 +420,6 @@ class Chip8(
             "Fx33" -> { val bcd = v[x].toString().padStart(3,'0'); for(i in bcd.indices) ram[I + i] = bcd[i].digitToInt()}
             "Fx55" -> { for(i in 0..x) ram[I + i] = v[i]}
             "Fx65" -> { for(i in 0..x) v[i] = ram[I + i]}
-        }
-        
-        CpuRegisters.apply {
-            v[0xf] = if (vf) 1 else 0
-            
-            this.I = I
-            this.pc = pc
-            this.dt = dt
-            this.st = st
         }
 
         return cosmacInstructionTime[pattern] ?: with(Duration) { 40.microseconds }

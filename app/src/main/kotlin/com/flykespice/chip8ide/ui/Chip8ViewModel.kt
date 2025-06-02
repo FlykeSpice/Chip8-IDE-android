@@ -1,18 +1,18 @@
 package com.flykespice.chip8ide.ui
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flykespice.chip8ide.chip8.Assembler
 import com.flykespice.chip8ide.data.Chip8IdeManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-sealed class IdeState {
-    class idle: IdeState()
-    class assembling: IdeState()
-    class success: IdeState()
-    data class error(val message: String, val line: Int): IdeState()
+sealed class IdeState(val message: String) {
+    class idle: IdeState(message = "")
+    class assembling: IdeState("Assembling...")
+    class success: IdeState("Successfully assembled!")
+    data class error(val reason: String, val line: Int): IdeState("Error: $reason at $line")
 }
 
 class Chip8ViewModel(
@@ -21,19 +21,21 @@ class Chip8ViewModel(
     private val onSaveFile: (String) -> Unit,
     private val onExportFile: (String) -> Unit
 ) : ViewModel() {
-    var ideState = mutableStateOf<IdeState>(IdeState.idle())
-    var filename: String = ""
+    private var _ideState = MutableStateFlow<IdeState>(IdeState.idle())
+    val ideState get() = _ideState.asStateFlow()
 
     val paused get() = chip8IdeManager.paused
     val frameBuffer get() = chip8IdeManager.frameBuffer
     val code get() = chip8IdeManager.code
 
-    fun run() = chip8IdeManager.run()
-    fun pause(flag: Boolean) = chip8IdeManager.pause(flag)
-    fun stop() = chip8IdeManager.stop()
-    fun reset() = chip8IdeManager.reset()
+    private val chip8 = chip8IdeManager.chip8
+    fun pause(flag: Boolean) = chip8.pause(flag)
+    fun stop() = chip8.stop()
+    fun reset() = chip8.reset()
 
-    fun setKey(key: Int, flag: Boolean) = chip8IdeManager.setKey(key, flag)
+    fun setKey(key: Int, flag: Boolean) {
+        chip8IdeManager.chip8.key[key] = flag
+    }
 
     fun updateCode(code: String) {
         viewModelScope.launch {
@@ -44,21 +46,20 @@ class Chip8ViewModel(
 
     fun assemble() {
         viewModelScope.launch {
-            ideState.value = IdeState.assembling()
+            _ideState.value = IdeState.assembling()
 
             try {
                 val result = chip8IdeManager.assemble()
-                ideState.value = IdeState.success()
+                _ideState.value = IdeState.success()
             } catch (parsingError: Assembler.ParsingError) {
-                ideState.value = IdeState.error(parsingError.message, parsingError.line)
+                _ideState.value = IdeState.error(parsingError.message, parsingError.line)
             }
         }
     }
 
-    fun showError(message: String, line: Int) {
-        ideState.value = IdeState.error(message, line)
+    fun setIdeState(ideState: IdeState) {
+        _ideState.value = ideState
     }
-
 
     fun chooseFile() {
         viewModelScope.launch {
@@ -81,7 +82,7 @@ class Chip8ViewModel(
                 assemble()
                 onExportFile(filename)
             } catch (parsingError: Assembler.ParsingError) {
-                ideState.value = IdeState.error(parsingError.message, parsingError.line)
+                _ideState.value = IdeState.error(parsingError.message, parsingError.line)
             }
         }
     }
@@ -95,7 +96,7 @@ class Chip8ViewModel(
 
     fun updateSprite(label: String, sprite: BooleanArray) {
         viewModelScope.launch {
-            if (code.value.lines().any {it.startsWith("$label:")})
+            if (code.value.lines().any { it.startsWith("$label:") })
                 chip8IdeManager.updateSprite(label, sprite)
             else
                 chip8IdeManager.createNewSprite(label, sprite)

@@ -1,17 +1,10 @@
 package com.flykespice.chip8ide.data
 
 import android.app.Application
-import android.media.AudioTrack
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.contract.ActivityResultContracts
 import com.flykespice.chip8ide.ui.Chip8ViewModel
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import java.lang.IllegalStateException
 
 class Chip8Application : Application() {
 
@@ -26,7 +19,7 @@ class Chip8Application : Application() {
         private set
 
     fun provideInstance(activityResultRegistry: ActivityResultRegistry, onSoundStateChange: (Boolean) -> Unit) {
-        chip8IdeManager = Chip8IdeManager(onSoundStateChange = onSoundStateChange)
+        chip8IdeManager = Chip8IdeManager(onBeepStateChange = onSoundStateChange)
 
         launcherOpener = activityResultRegistry.register("opener", ActivityResultContracts.OpenDocument()) { uri ->
             if(uri != null) {

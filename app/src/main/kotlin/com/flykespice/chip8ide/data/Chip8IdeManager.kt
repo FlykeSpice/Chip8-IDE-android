@@ -8,11 +8,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-//Manager for Chip8's Ide
-class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
-    private val chip8 = Chip8(
+/**
+ * Class that manages all the IDE operations, including the opened project
+ * @param onBeepStateChange the lambda that will be called whenever Chip8's better state changes
+ */
+class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
+
+    val chip8 = Chip8(
         onScreenUpdate = { _frameBuffer.value = it },
-        onSoundStateChange = onSoundStateChange
+        onBeepStateChange = onBeepStateChange
     )
 
     private lateinit var rom: IntArray
@@ -33,18 +37,18 @@ class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
     val frameBuffer = _frameBuffer.asStateFlow()
 
     fun load(text: String) {
-        stop()
+        chip8.stop()
         pause(true)
         update(text)
-        reset()
+        chip8.reset()
     }
 
     fun load(binary: IntArray) {
-        stop()
+        chip8.stop()
         pause(true)
         chip8.load(binary)
         _code.value = Disassembler.disassemble(binary)
-        reset()
+        chip8.reset()
     }
 
     fun update(code: String) {
@@ -62,24 +66,9 @@ class Chip8IdeManager(onSoundStateChange: (Boolean) -> Unit) {
         return rom
     }
 
-    fun run() = chip8.run()
-
     fun pause(flag: Boolean) {
         chip8.pause(flag)
         _paused.value = flag
-    }
-
-    fun stop() = chip8.stop()
-
-    fun reset() = chip8.run()
-
-    private var keyState = BooleanArray(16)
-    init {
-        chip8.pollKeys = {keyState}
-    }
-
-    fun setKey(key: Int, flag: Boolean) {
-        keyState[key] = flag
     }
 
     fun setClockRate(clockRate: Int) {
