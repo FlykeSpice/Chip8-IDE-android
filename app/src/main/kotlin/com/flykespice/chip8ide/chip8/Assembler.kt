@@ -83,7 +83,7 @@ object Assembler {
 
     data class ParsingError(override val message: String, val line: Int): Throwable(message)
 
-    fun assemble(code: String): IntArray {
+    fun assemble(code: String): ByteArray {
 
         val lines = code.lines()
             .mapIndexed { index, str -> index to str.lowercase().substringBefore(';').trimStart().trimEnd() }
@@ -253,6 +253,6 @@ object Assembler {
             }
         }
 
-        return rom.toIntArray()
+        return rom.map { it.toByte() }.toByteArray()
     }
 }

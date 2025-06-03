@@ -57,12 +57,11 @@ class Chip8(
     val key = BooleanArray(16)
     private var keyPressed = -1
 
-    private var loaded: Boolean = false
     var paused: Boolean = true
         private set
 
     private val ram = IntArray(4096)
-    private var rom = IntArray(0)
+    private var rom = ByteArray(0)
 
     private var originalMode = false
 
@@ -209,7 +208,7 @@ class Chip8(
             ram[i] = digits[i]
 
         for(i in rom.indices)
-            ram[0x200+i] = rom[i]
+            ram[0x200+i] = rom[i].toInt()
 
         key.fill(false)
         keyPressed = -1
@@ -218,7 +217,7 @@ class Chip8(
         lastPc = 0x200
     }
 
-    fun load(rom: IntArray) {
+    fun load(rom: ByteArray) {
         require(rom.size > (4096-513)) {
             "Chip-8 rom size ${rom.size} is larger than interpreter memory size ${4096-513}"
         }
@@ -229,7 +228,6 @@ class Chip8(
         }
 
         this.rom = rom.copyOf()
-        loaded = true
         reset()
     }
 
@@ -338,7 +336,7 @@ class Chip8(
             mainJob.cancel()
     }
 
-    private fun decode(opcode : Int): Duration = CpuRegisters.run {
+    private fun decode(opcode: Int): Duration = CpuRegisters.run {
 
         val pattern = patterns.firstOrNull { (_, pattern) ->
             Pattern.matches(

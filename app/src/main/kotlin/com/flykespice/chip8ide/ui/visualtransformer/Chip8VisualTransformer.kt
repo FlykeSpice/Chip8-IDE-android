@@ -24,9 +24,6 @@ private fun String.nextNonWhiteSpace(index: Int): Int {
 
 private val table = Assembler.table.map { Regex(it.second.pattern + "(\\s|$)", RegexOption.IGNORE_CASE) }
 
-private val reservedKeywords = Assembler.reservedKeywords
-    .filter { !it.startsWith('v') } //Ignore the registers
-
 data class Chip8SyntaxStyle(
     val comments: Color,
     val literals: Color,
@@ -44,8 +41,6 @@ data class Chip8SyntaxStyle(
         )
     }
 }
-
-
 
 fun String.toChip8SyntaxAnnotatedString(chip8SyntaxStyle: Chip8SyntaxStyle = Chip8SyntaxStyle.Light): AnnotatedString {
     val styles = ArrayList<AnnotatedString.Range<SpanStyle>>()
@@ -133,44 +128,4 @@ fun String.toChip8SyntaxAnnotatedString(chip8SyntaxStyle: Chip8SyntaxStyle = Chi
     }
 
     return AnnotatedString(this, spanStyles = styles)
-}
-
-//FIXME: This is too slow when there are many text (and styles)
-//This code assumes spanstyles is sorted.
-fun adjustSpanStyle(
-    spanStyles: List<AnnotatedString.Range<SpanStyle>>,
-    oldText: String,
-    newText: String,
-    cursorPosition: Int
-): List<AnnotatedString.Range<SpanStyle>> {
-    if (oldText.isEmpty() || newText.isEmpty())
-        return spanStyles
-
-    val displacement = newText.length - oldText.length
-    val first = spanStyles.indexOfFirst { it.end >= cursorPosition }
-
-    //Log.d("adjustSpanStyle", "cursorPosition = $cursorPosition")
-
-    if (first == -1)
-        return spanStyles
-
-    //val newSpanStyle = ArrayList<AnnotatedString.Range<SpanStyle>>(spanStyles.slice(0 .. first))
-    val newSpanStyle = ArrayList<AnnotatedString.Range<SpanStyle>>(spanStyles.size)
-
-    for(i in 0 until spanStyles.size) {
-        val style = spanStyles[i]
-        var start = style.start
-        var end = style.end
-
-        if (start >= cursorPosition)
-            start += displacement
-
-        if (end >= cursorPosition)
-            end += displacement
-
-        if (start < end)
-            newSpanStyle.add(style.copy(start = start, end = end))
-    }
-
-    return newSpanStyle
 }

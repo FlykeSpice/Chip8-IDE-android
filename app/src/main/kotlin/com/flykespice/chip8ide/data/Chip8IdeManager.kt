@@ -19,7 +19,7 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
         onBeepStateChange = onBeepStateChange
     )
 
-    private lateinit var rom: IntArray
+    private lateinit var rom: ByteArray
 
     private val _code = MutableStateFlow("")
     val code = _code.asStateFlow()
@@ -43,7 +43,7 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
         chip8.reset()
     }
 
-    fun load(binary: IntArray) {
+    fun load(binary: ByteArray) {
         chip8.stop()
         pause(true)
         chip8.load(binary)
@@ -59,10 +59,9 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
      * Assemble the code
      * @throws Assembler.ParsingError if code contains incorrect syntax
      */
-    fun assemble(): IntArray {
+    fun assemble(): ByteArray {
         rom = Assembler.assemble(_code.value)
         chip8.load(rom)
-
         return rom
     }
 
@@ -93,9 +92,7 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
     fun export(stream: OutputStream) {
         (stream as FileOutputStream).run {
             channel.truncate(0)
-
-            val out = rom.map { it.toByte() }.toByteArray()
-            write(out)
+            write(rom)
         }
     }
 

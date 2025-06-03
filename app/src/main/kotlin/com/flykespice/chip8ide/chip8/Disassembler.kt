@@ -5,7 +5,7 @@ import java.util.regex.Pattern
 
 object Disassembler {
     //Encode chip-8 instruction mnemonics to regex
-    private data class Instruction(val addr: Int, val opcode: Int, var mnemonic: String)
+    private data class Instruction(val addr: Int, val opcode: Int, val mnemonic: String)
 
     private data class DisassemblyInfo(
         val instructions: ArrayList<Instruction> = ArrayList(),
@@ -16,7 +16,7 @@ object Disassembler {
     )
 
     private fun recursiveDisassemble(
-        rom: IntArray,
+        rom: ByteArray,
         startingAddress: Int,
         info: DisassemblyInfo
     ) {
@@ -34,7 +34,7 @@ object Disassembler {
             if (instructions.any { it.addr == pc })
                 return
 
-            val opcode = (rom[pc-0x200] shl 8) + rom[(pc-0x200)+1]
+            val opcode = (rom[pc-0x200].toInt() shl 8) + rom[(pc-0x200)+1]
 
             lateinit var pair: Map.Entry<String, String>
             try {
@@ -128,7 +128,7 @@ object Disassembler {
         }
     }
 
-    fun disassemble(rom: IntArray): String {
+    fun disassemble(rom: ByteArray): String {
         val info = DisassemblyInfo()
         recursiveDisassemble(rom, 0x200, info)
 

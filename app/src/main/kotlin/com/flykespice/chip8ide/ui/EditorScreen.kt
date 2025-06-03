@@ -67,8 +67,8 @@ fun EditorScreen(
                 .verticalScroll(scrollState)
             ) {
                 var visualTransformation by remember { mutableStateOf(VisualTransformation.None, neverEqualPolicy()) }
-                var visualSpanStyle: List<AnnotatedString.Range<SpanStyle>> = remember { AnnotatedString("").spanStyles }
-                var oldText = remember { textField.text }
+                var visualSpanStyle: List<AnnotatedString.Range<SpanStyle>>
+                var oldText: String
 
                 LaunchedEffect(textField.text) {
                     delay(500) //Cooldown, so that it only gets update after user stops typing
@@ -137,8 +137,11 @@ fun EditorScreen(
     }
 }
 
-//FIXME: This is too slow when there are many text (and styles)
-//This code assumes spanstyles is sorted.
+/**
+ * Adjust an [AnnotatedString] span styles after text changes.
+ * 
+ * This is used rather than the more expensive toChip8SyntaxAnnotatedString extension function when the user is rapidly changing the text in a small amount of time.
+ */
 private fun adjustSpanStyle(
     spanStyles: List<AnnotatedString.Range<SpanStyle>>,
     oldText: String,
@@ -151,16 +154,13 @@ private fun adjustSpanStyle(
     val displacement = newText.length - oldText.length
     val first = spanStyles.indexOfFirst { it.end >= cursorPosition }
 
-    //Log.d("adjustSpanStyle", "cursorPosition = $cursorPosition")
-
     if (first == -1)
         return spanStyles
 
     //val newSpanStyle = ArrayList<AnnotatedString.Range<SpanStyle>>(spanStyles.slice(0 .. first))
     val newSpanStyle = ArrayList<AnnotatedString.Range<SpanStyle>>(spanStyles.size)
 
-    for(i in 0 until spanStyles.size) {
-        val style = spanStyles[i]
+    spanStyles.forEach { style ->
         var start = style.start
         var end = style.end
 
@@ -169,6 +169,7 @@ private fun adjustSpanStyle(
 
         if (end >= cursorPosition)
             end += displacement
+
         if (start < end)
             newSpanStyle.add(style.copy(start = start, end = end))
     }

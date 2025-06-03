@@ -25,16 +25,13 @@ class Chip8Application : Application() {
             if(uri != null) {
                 val stream = contentResolver.openInputStream(uri)
                 if(stream != null) {
-                    val bytes = stream.readBytes()
+                    val data = stream.readBytes()
                     stream.close()
 
-                    val text = bytes.decodeToString()
+                    val text = data.decodeToString()
                     if("\uFFFD" !in text) {
                         chip8IdeManager.load(text)
                     } else {
-                        val data = IntArray(bytes.size)
-                        bytes.forEachIndexed { i, byte -> data[i] = byte.toInt() and 0xFF}
-
                         chip8IdeManager.load(data)
                     }
                 }
