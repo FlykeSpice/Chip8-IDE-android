@@ -9,7 +9,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
-import java.util.regex.Pattern
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.random.nextInt
@@ -176,17 +175,23 @@ class Chip8(
         )
 
         /**
-         * Encode a chip-8 instruction opcode to regex pattern
+         * Encode a chip-8 instruction opcode to regex
          */
-        fun String.opcodeToPattern() =
+        private fun String.opcodeToRegex() =
             this
                 .replace("x","\\p{XDigit}")
                 .replace("nnn", "\\p{XDigit}{3}")
                 .replace("kk", "\\p{XDigit}{2}")
                 .replace("y","\\p{XDigit}")
                 .replace("n", "\\p{XDigit}")
+                .toRegex()
 
-        private val patterns = mnemonics.keys.map { it to it.opcodeToPattern() }
+        private val opcodesRegex = mnemonics.keys.map { it.opcodeToRegex() to it }
+
+        fun Int.getOpcodePatternOrNull() =
+            opcodesRegex.firstOrNull { (regex, _) ->
+                regex.matches(this.toString(16).uppercase().padStart(4,'0'))
+            }?.second
     }
 
     var clockRate = 500
@@ -338,11 +343,7 @@ class Chip8(
 
     private fun decode(opcode: Int): Duration = CpuRegisters.run {
 
-        val pattern = patterns.firstOrNull { (_, pattern) ->
-            Pattern.matches(
-                pattern,
-                opcode.toString(16).uppercase().padStart(4,'0'))
-        }?.first
+        val pattern = opcode.getOpcodePatternOrNull()
 
         val nnn = opcode and 0xFFF
         val x   = (opcode shr 2*4) and 0xF
@@ -350,7 +351,7 @@ class Chip8(
         val kk  = opcode and 0xFF
         val n   = opcode and 0xF
 
-        when(pattern) {
+        when (pattern) {
             "00E0" -> { display.fill(false)}
             "00EE" -> { pc = try { stack.removeAt(stack.size-1) } catch (_: IndexOutOfBoundsException) { 0 }}
             "1nnn" -> { pc = nnn-2}

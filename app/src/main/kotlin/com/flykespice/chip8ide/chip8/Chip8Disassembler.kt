@@ -1,19 +1,21 @@
 package com.flykespice.chip8ide.chip8
 
-import com.flykespice.chip8ide.chip8.Chip8.Companion.opcodeToPattern
-import java.util.regex.Pattern
+import com.flykespice.chip8ide.chip8.Chip8.Companion.getOpcodePatternOrNull
 
-object Disassembler {
+object Chip8Disassembler {
     //Encode chip-8 instruction mnemonics to regex
     private data class Instruction(val addr: Int, val opcode: Int, val mnemonic: String)
 
     private data class DisassemblyInfo(
         val instructions: ArrayList<Instruction> = ArrayList(),
-        var drawData: ArrayList<Pair<Int, Int>> = ArrayList(),
-        var data: ArrayList<Int> = ArrayList(),
-        var calls: ArrayList<Int> = ArrayList(),
-        var jumps: ArrayList<Int> = ArrayList()
+        val calls: ArrayList<Int> = ArrayList(),
+        val jumps: ArrayList<Int> = ArrayList()
     )
+
+    /**
+     * Same as Byte.toInt() but no sign extension
+     */
+    private fun Byte.toInt2() = this.toInt().and(0xff)
 
     private fun recursiveDisassemble(
         rom: ByteArray,
@@ -25,31 +27,25 @@ object Disassembler {
         //  If reached a branch that can't be computed at compile time, let it be unknown
 
         var pc = startingAddress
-        val (instructions, drawData, data, calls, jumps) = info
+        val (instructions, calls, jumps) = info
 
-        loop@ while (true) {
+        while (true) {
             if (((pc-0x200)+1) > rom.lastIndex) //Out of bounds
                 return
 
             if (instructions.any { it.addr == pc })
                 return
 
-            val opcode = (rom[pc-0x200].toInt() shl 8) + rom[(pc-0x200)+1]
+            val opcode = (rom[pc-0x200].toInt2() shl 8) or rom[(pc-0x200)+1].toInt2()
 
-            lateinit var pair: Map.Entry<String, String>
-            try {
-                pair = Chip8.mnemonics.firstNotNullOf {
-                    if (Pattern.matches(
-                            it.key.opcodeToPattern(),
-                            opcode.toString(16).uppercase().padStart(4, '0')
-                        )
-                    ) it else null
-                }
-            } catch (_: NoSuchElementException) {
-                //Chip-8 ignores invalid opcodes so do we, next
+            val pattern = opcode.getOpcodePatternOrNull()
+            if (pattern == null) {
+                //Most chip-8 interpreters implementations ignore invalid opcodes, so do we
                 pc += 2
-                continue@loop
+                continue
             }
+
+            var mnemonic = Chip8.mnemonics[pattern]!!
 
             val nnn = opcode and 0xFFF
             val x = (opcode shr 2*4) and 0xF
@@ -57,14 +53,11 @@ object Disassembler {
             val kk = opcode and 0xFF
             val n = opcode and 0xF
 
-            var mnemonic = pair.value
-
             val oldPC = pc
             var underConditional = false
 
-            when(pair.key) {
+            when (pattern) {
                 "1nnn" -> { //JP nnn
-                    //TODO: Check whether it self-loops (jump an address already disassembled), if so stop disassembling
                     instructions.lastOrNull()?.run {
                         val conditionals = listOf("SE", "SNE", "SKP", "SKNP")
                         if (conditionals.any { this.mnemonic.startsWith(it) }) {
@@ -83,7 +76,7 @@ object Disassembler {
                 }
 
                 "2nnn" -> { //CALL nnn
-                    if(nnn !in calls) calls.add(nnn)
+                    if (nnn !in calls) calls.add(nnn)
                     mnemonic = mnemonic.replace("addr", "call_${calls.indexOf(nnn)}")
 
                     if (instructions.all { it.addr != nnn }) {
@@ -116,7 +109,7 @@ object Disassembler {
                 )
             )
 
-            if (pair.key == "00EE")
+            if (pattern == "00EE")
                 return
 
             if(underConditional) {
@@ -133,7 +126,7 @@ object Disassembler {
         recursiveDisassemble(rom, 0x200, info)
 
         //TODO: Post process: Annotate as data directive those regions in the rom not disassembled
-        val (instructions, drawData, data, calls, jumps) = info
+        val (instructions, calls, jumps) = info
 
         info.instructions.sortBy { it.addr }
 

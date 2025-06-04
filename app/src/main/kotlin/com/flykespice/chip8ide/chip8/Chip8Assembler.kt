@@ -15,14 +15,14 @@ package com.flykespice.chip8ide.chip8
     }
 }
 
-/*private*/ fun String.evalExpression(labels: HashMap<String, Int>): Int? {
+private fun String.evalExpression(labels: HashMap<String, Int>): Int? {
     val tokens = this.removePrefix("(").removeSuffix(")").split("+","-","*").toMutableList()
     val operators = this.filter { it in "+-*" }
 
     fun getTokenOrNull(): Int? {
         val token = tokens.removeAt(tokens.lastIndex)
 
-        return if (Assembler.identifier.matches(token)) {
+        return if (Chip8Assembler.identifier.matches(token)) {
             labels[token]
         } else {
             token.decodeLiteral()
@@ -48,7 +48,7 @@ package com.flykespice.chip8ide.chip8
 /*
 * TODO: Make the assembler return a struct containing info about the assembled program
 * */
-object Assembler {
+object Chip8Assembler {
     //Operands regex
     val identifier = Regex("\\.?[a-z_][a-z_0-9]*")
     val literal = Regex("(#\\p{XDigit}{1,3})|(0b[01]+)|(\\d+)")

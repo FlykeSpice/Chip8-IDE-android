@@ -1,8 +1,8 @@
 package com.flykespice.chip8ide.data
 
-import com.flykespice.chip8ide.chip8.Assembler
+import com.flykespice.chip8ide.chip8.Chip8Assembler
 import com.flykespice.chip8ide.chip8.Chip8
-import com.flykespice.chip8ide.chip8.Disassembler
+import com.flykespice.chip8ide.chip8.Chip8Disassembler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.FileOutputStream
@@ -47,7 +47,7 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
         chip8.stop()
         pause(true)
         chip8.load(binary)
-        _code.value = Disassembler.disassemble(binary)
+        _code.value = Chip8Disassembler.disassemble(binary)
         chip8.reset()
     }
 
@@ -57,10 +57,10 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
 
     /**
      * Assemble the code
-     * @throws Assembler.ParsingError if code contains incorrect syntax
+     * @throws Chip8Assembler.ParsingError if code contains incorrect syntax
      */
     fun assemble(): ByteArray {
-        rom = Assembler.assemble(_code.value)
+        rom = Chip8Assembler.assemble(_code.value)
         chip8.load(rom)
         return rom
     }

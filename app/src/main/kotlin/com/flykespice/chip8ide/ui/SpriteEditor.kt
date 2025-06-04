@@ -56,7 +56,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.flykespice.chip8ide.chip8.Assembler
+import com.flykespice.chip8ide.chip8.Chip8Assembler
 import com.flykespice.chip8ide.chip8.decodeLiteral
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 import kotlinx.collections.immutable.ImmutableList
@@ -111,7 +111,7 @@ fun getSprites(_code: String, onError: (String, Int) -> Unit): List<Pair<String,
             break
         }
 
-        if (!code[i].matches(Regex("${Assembler.identifier}:"))) {
+        if (!code[i].matches(Regex("${Chip8Assembler.identifier}:"))) {
             onError(".sprite must be followed by a label", i.adjustForBlanks())
             break
         }

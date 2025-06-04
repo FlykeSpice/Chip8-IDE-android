@@ -2,7 +2,7 @@ package com.flykespice.chip8ide.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.flykespice.chip8ide.chip8.Assembler
+import com.flykespice.chip8ide.chip8.Chip8Assembler
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,7 +51,7 @@ class Chip8ViewModel(
             try {
                 val result = chip8IdeManager.assemble()
                 _ideState.value = IdeState.success()
-            } catch (parsingError: Assembler.ParsingError) {
+            } catch (parsingError: Chip8Assembler.ParsingError) {
                 _ideState.value = IdeState.error(parsingError.message, parsingError.line)
             }
         }
@@ -81,7 +81,7 @@ class Chip8ViewModel(
             try {
                 assemble()
                 onExportFile(filename)
-            } catch (parsingError: Assembler.ParsingError) {
+            } catch (parsingError: Chip8Assembler.ParsingError) {
                 _ideState.value = IdeState.error(parsingError.message, parsingError.line)
             }
         }

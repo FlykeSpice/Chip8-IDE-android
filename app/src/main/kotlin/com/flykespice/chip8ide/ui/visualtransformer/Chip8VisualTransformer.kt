@@ -3,7 +3,7 @@ package com.flykespice.chip8ide.ui.visualtransformer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import com.flykespice.chip8ide.chip8.Assembler
+import com.flykespice.chip8ide.chip8.Chip8Assembler
 
 private fun String.indexOfOrNull(char: Char, startIndex: Int): Int? {
     val index = this.indexOf(char, startIndex)
@@ -22,7 +22,7 @@ private fun String.nextNonWhiteSpace(index: Int): Int {
     return _index
 }
 
-private val table = Assembler.table.map { Regex(it.second.pattern + "(\\s|$)", RegexOption.IGNORE_CASE) }
+private val table = Chip8Assembler.table.map { Regex(it.second.pattern + "(\\s|$)", RegexOption.IGNORE_CASE) }
 
 data class Chip8SyntaxStyle(
     val comments: Color,
