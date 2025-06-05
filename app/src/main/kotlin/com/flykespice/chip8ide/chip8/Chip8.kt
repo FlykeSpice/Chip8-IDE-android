@@ -352,41 +352,41 @@ class Chip8(
         val n   = opcode and 0xF
 
         when (pattern) {
-            "00E0" -> { display.fill(false)}
-            "00EE" -> { pc = try { stack.removeAt(stack.size-1) } catch (_: IndexOutOfBoundsException) { 0 }}
-            "1nnn" -> { pc = nnn-2}
-            "2nnn" -> { stack.add(pc); pc = nnn-2}
-            "3xkk" -> { if(v[x] == kk) pc += 2}
-            "4xkk" -> { if(v[x] != kk) pc += 2}
-            "5xy0" -> { if(v[x] == v[y]) pc += 2}
-            "6xkk" -> { v[x] = kk}
-            "7xkk" -> { v[x] = (v[x] + kk) and 0xFF}
-            "8xy0" -> { v[x] = v[y]}
-            "8xy1" -> { v[x] = v[x] or v[y]}
-            "8xy2" -> { v[x] = v[x] and v[y]}
-            "8xy3" -> { v[x] = v[x] xor v[y]}
-            "8xy4" -> { vf = (v[x] + v[y]) > 0xFF; v[x] = (v[x] + v[y]) and 0xFF}
-            "8xy5" -> { vf = v[x] > v[y]; v[x] -= v[y]; if(v[x] < 0) v[x] = 0xFF - abs(v[x])-1}
-            "8xy6" -> { vf = v[x].takeLowestOneBit() != 0; v[x] = (v[x] shr 1) and 0xFF}
-            "8xy7" -> { vf = v[y] > v[x]; v[x] = v[y]-v[x]; if(v[x] < 0) v[x] = 0xFF - abs(v[x])-1}
-            "8xyE" -> { vf = (v[x] and 0x80) != 0; v[x] = (v[x] shl 1) and 0xFF}
-            "9xy0" -> { if(v[x] != v[y]) pc += 2}
-            "Annn" -> { I = nnn}
-            "Bnnn" -> { pc = ((nnn + v[0]) and 0xFFF) - 2}
-            "Cxkk" -> { v[x] = Random.nextInt(0..0xFF) and kk}
+            "00E0" -> { display.fill(false) }
+            "00EE" -> { pc = try { stack.removeAt(stack.size-1) } catch (_: IndexOutOfBoundsException) { 0 } }
+            "1nnn" -> { pc = nnn-2 }
+            "2nnn" -> { stack.add(pc); pc = nnn-2 }
+            "3xkk" -> { if(v[x] == kk) pc += 2 }
+            "4xkk" -> { if(v[x] != kk) pc += 2 }
+            "5xy0" -> { if(v[x] == v[y]) pc += 2 }
+            "6xkk" -> { v[x] = kk }
+            "7xkk" -> { v[x] = (v[x] + kk) and 0xFF }
+            "8xy0" -> { v[x] = v[y] }
+            "8xy1" -> { v[x] = v[x] or v[y] }
+            "8xy2" -> { v[x] = v[x] and v[y] }
+            "8xy3" -> { v[x] = v[x] xor v[y] }
+            "8xy4" -> { vf = (v[x] + v[y]) > 0xFF; v[x] = (v[x] + v[y]) and 0xFF }
+            "8xy5" -> { vf = v[x] > v[y]; v[x] -= v[y]; if(v[x] < 0) v[x] = 0xFF - abs(v[x])-1 }
+            "8xy6" -> { vf = v[x].takeLowestOneBit() != 0; v[x] = (v[x] shr 1) and 0xFF }
+            "8xy7" -> { vf = v[y] > v[x]; v[x] = v[y]-v[x]; if(v[x] < 0) v[x] = 0xFF - abs(v[x])-1 }
+            "8xyE" -> { vf = (v[x] and 0x80) != 0; v[x] = (v[x] shl 1) and 0xFF }
+            "9xy0" -> { if(v[x] != v[y]) pc += 2 }
+            "Annn" -> { I = nnn }
+            "Bnnn" -> { pc = ((nnn + v[0]) and 0xFFF) - 2 }
+            "Cxkk" -> { v[x] = Random.nextInt(0..0xFF) and kk }
 
             "Dxyn" -> {
                 var erased = false
                 val X = v[x] % 64; var Y = v[y] % 32
 
-                for(i in 0 until n) {
+                for (i in 0 until n) {
                     val row = ram[I + i]
 
-                    if(Y >= 32)
+                    if (Y >= 32)
                         break
 
                     for (j in 0..7) {
-                        if(X+j >= 64)
+                        if (X+j >= 64)
                             break
 
                         val position = X+j + (Y*64)
@@ -401,24 +401,24 @@ class Chip8(
                 vf = erased
             }
 
-            "Ex9E" -> { if(key[v[x]]) pc += 2}
-            "ExA1" -> { if(!key[v[x]]) pc += 2}
+            "Ex9E" -> { if(key[v[x]]) pc += 2 }
+            "ExA1" -> { if(!key[v[x]]) pc += 2 }
 
-            "Fx07" -> { v[x] = dt}
+            "Fx07" -> { v[x] = dt }
             "Fx0A" -> { if(keyPressed != -1) v[x] = keyPressed else pc -= 2}
-            "Fx15" -> { dt = v[x]}
+            "Fx15" -> { dt = v[x] }
             "Fx18" -> {
                 st = v[x]
                 onBeepStateChange(true)
             }
-            "Fx1E" -> { I = (I + v[x]) and 0xFFF}
+            "Fx1E" -> { I = (I + v[x]) and 0xFFF }
 
             //Digit sprites located right at the start of memory(ram)
-            "Fx29" -> { I = (v[x] * 5) and 0xFFF}
+            "Fx29" -> { I = (v[x] * 5) and 0xFFF }
 
             "Fx33" -> { val bcd = v[x].toString().padStart(3,'0'); for(i in bcd.indices) ram[I + i] = bcd[i].digitToInt()}
-            "Fx55" -> { for(i in 0..x) ram[I + i] = v[i]}
-            "Fx65" -> { for(i in 0..x) v[i] = ram[I + i]}
+            "Fx55" -> { for(i in 0..x) ram[I + i] = v[i] }
+            "Fx65" -> { for(i in 0..x) v[i] = ram[I + i] }
         }
 
         return cosmacInstructionTime[pattern] ?: with(Duration) { 40.microseconds }

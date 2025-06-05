@@ -112,7 +112,7 @@ object Chip8Disassembler {
             if (pattern == "00EE")
                 return
 
-            if(underConditional) {
+            if (underConditional) {
                 //Now disassemble another branch
                 recursiveDisassemble(rom, nnn, info)
             }
@@ -125,21 +125,19 @@ object Chip8Disassembler {
         val info = DisassemblyInfo()
         recursiveDisassemble(rom, 0x200, info)
 
-        //TODO: Post process: Annotate as data directive those regions in the rom not disassembled
         val (instructions, calls, jumps) = info
 
-        info.instructions.sortBy { it.addr }
+        instructions.sortBy { it.addr }
 
         var str = ""
-
         var dataN = 0
-        for(i in instructions.indices) {
+        for (i in instructions.indices) {
             val ins = instructions[i]
 
-            if(ins.addr in calls)
+            if (ins.addr in calls)
                 str += "\ncall_${calls.indexOf(ins.addr)}:\n"
 
-            if(ins.addr in jumps)
+            if (ins.addr in jumps)
                 str += "\nJ${jumps.indexOf(ins.addr)}:\n"
 
             str += ins.mnemonic.padEnd(25) + ";${ins.addr.toString(16)} ${ins.opcode.toString(16)}" + "\n"
@@ -147,7 +145,7 @@ object Chip8Disassembler {
             val afterAddr = ins.addr+2 - 0x200
             val untilAddr = try { instructions[i+1].addr - 0x200 } catch(_: Throwable) { rom.size }
             var n = 1
-            if(afterAddr < untilAddr)
+            if (afterAddr < untilAddr)
             {
                 str += "data${dataN++}:\ndb"
                 for(j in afterAddr until untilAddr) {

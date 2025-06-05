@@ -10,19 +10,17 @@ package com.flykespice.chip8ide.chip8
         } else {
             this.toInt()
         }
-    } catch (_: Throwable) {
-        null
-    }
+    } catch (_: NumberFormatException) { null }
 }
 
-private fun String.evalExpression(labels: HashMap<String, Int>): Int? {
+private fun String.evalExpression(labels: Map<String, Int>): Int? {
     val tokens = this.removePrefix("(").removeSuffix(")").split("+","-","*").toMutableList()
     val operators = this.filter { it in "+-*" }
 
     fun getTokenOrNull(): Int? {
         val token = tokens.removeAt(tokens.lastIndex)
 
-        return if (Chip8Assembler.identifier.matches(token)) {
+        return if (Chip8Assembler.identifierRegex.matches(token)) {
             labels[token]
         } else {
             token.decodeLiteral()
@@ -31,8 +29,7 @@ private fun String.evalExpression(labels: HashMap<String, Int>): Int? {
 
     var result = getTokenOrNull() ?: return null
 
-
-    for(operator in operators) {
+    for (operator in operators) {
         val operand = getTokenOrNull() ?: return null
 
         when (operator) {
@@ -45,16 +42,14 @@ private fun String.evalExpression(labels: HashMap<String, Int>): Int? {
     return result
 }
 
-/*
-* TODO: Make the assembler return a struct containing info about the assembled program
-* */
+
 object Chip8Assembler {
     //Operands regex
-    val identifier = Regex("\\.?[a-z_][a-z_0-9]*")
-    val literal = Regex("(#\\p{XDigit}{1,3})|(0b[01]+)|(\\d+)")
+    val identifierRegex = Regex("\\.?[a-z_][a-z_0-9]*")
+    private val literalRegex = Regex("(#\\p{XDigit}{1,3})|(0b[01]+)|(\\d+)")
 
     //keywords that can't be used as identifiers
-    val reservedKeywords = listOf(
+    private val reservedKeywords = listOf(
         "equ",
         "v0", "v1", "v2", "v3", "v4", "v5", "v6","v7", "v8", "v9", "va", "vb", "vc", "vd", "ve", "vf",
         "i",
@@ -65,17 +60,17 @@ object Chip8Assembler {
     )
 
     //FIXME: Java/Kotlin regex doesn't supports recursive match, needs to manually check recursion
-    val expression = Regex("\\(\\s*($literal|$identifier)\\s*([+\\-*]\\s*($literal|$identifier)\\s*)+\\)")
+    private val expressionRegex = Regex("\\(\\s*($literalRegex|$identifierRegex)\\s*([+\\-*]\\s*($literalRegex|$identifierRegex)\\s*)+\\)")
 
     private fun operandToPattern(name: String, pattern: String) = "(?<$name>($pattern))"
 
     private fun mnemonicToPattern(mnemonic: String) =
         mnemonic
-            .replace("byte", operandToPattern("kk","$literal|((?!((v\\p{XDigit})|dt|k|i)(\\s|;|$))$identifier)|$expression"))
-            .replace("addr", operandToPattern("nnn","$literal|((?!((v\\p{XDigit})|dt|k|i)(\\s|;|$))$identifier)|$expression"))
+            .replace("byte", operandToPattern("kk","$literalRegex|((?!((v\\p{XDigit})|dt|k|i)(\\s|;|$))$identifierRegex)|$expressionRegex"))
+            .replace("addr", operandToPattern("nnn","$literalRegex|((?!((v\\p{XDigit})|dt|k|i)(\\s|;|$))$identifierRegex)|$expressionRegex"))
             .replace("vx", "v" + operandToPattern("x","\\p{XDigit}{1}"))
             .replace("vy", "v" + operandToPattern("y","\\p{XDigit}{1}"))
-            .replace("nibble", operandToPattern("n", "$literal|$expression"))
+            .replace("nibble", operandToPattern("n", "$literalRegex|$expressionRegex"))
             .replace("[i]", "\\[i\\]")
             .replace(" ", "\\s+")
 
@@ -99,7 +94,7 @@ object Chip8Assembler {
         //Preprocess labels
         var byteCount = 0x200
         var lastLabel = ""
-        for((index, line) in lines) {
+        for ((index, line) in lines) {
             val index = index+1
 
             var label = line.substringBefore(':').takeIf { it != line }
@@ -107,7 +102,7 @@ object Chip8Assembler {
             if (label != null) {
                 if (label in reservedKeywords)
                     throw ParsingError("$label is a reserved keyword, can't be used as label", index)
-                else if (!identifier.matches(label))
+                else if (!identifierRegex.matches(label))
                     throw ParsingError("label $label isn't a valid identifier", index)
 
                 if (label.startsWith('.')) {
@@ -116,7 +111,7 @@ object Chip8Assembler {
                         throw ParsingError("local label $label must be defined after a global label", index)
 
                     label += lastLabel
-                } else if(label in labels.keys) {
+                } else if (label in labels.keys) {
                     throw ParsingError("label $label has already been defined before", index)
                 } else {
                     lastLabel = label
@@ -127,8 +122,8 @@ object Chip8Assembler {
 
             val line = line.substringAfter(':').trimStart()
 
-            for((_, pattern) in table) {
-                if(pattern.matches(line)) {
+            for ((_, pattern) in table) {
+                if (pattern.matches(line)) {
                     pendingLabels.forEach {
                         labels[it] = byteCount
                     }
@@ -139,10 +134,10 @@ object Chip8Assembler {
                 }
             }
 
-            if(line.startsWith(".sprite")) {
+            if (line.startsWith(".sprite")) {
                 continue
             }
-            else if(line.startsWith("db")) {
+            else if (line.startsWith("db")) {
                 pendingLabels.forEach {
                     labels[it] = byteCount
                 }
@@ -151,7 +146,7 @@ object Chip8Assembler {
                 val size = line.removePrefix("db").split(',').filter { it.isNotBlank() }.size
                 byteCount += size
             } else if (line.startsWith("equ")) {
-                if(label == line) {
+                if (label == line) {
                     throw ParsingError("Missing label for equ directive", index)
                 }
 
@@ -166,21 +161,21 @@ object Chip8Assembler {
             }
         }
 
-        if(pendingLabels.isNotEmpty())
+        if (pendingLabels.isNotEmpty())
             throw ParsingError("labels touch end of code", code.lines().lastIndex+1)
 
-        for((index, line) in lines) {
+        for ((index, line) in lines) {
             lastLabel = line.substringBefore(':').takeIf { it != line && !it.startsWith('.')} ?: lastLabel
 
             val line = line.substringAfter(':').trimStart() //Ignore the labels
             val index = index+1
 
-            if(line.isBlank() || line.startsWith(".sprite"))
+            if (line.isBlank() || line.startsWith(".sprite"))
                 continue
 
             var match: MatchResult? = null
             var opcode = ""
-            for((op, pattern) in table) {
+            for ((op, pattern) in table) {
                 match = pattern.matchEntire(line)
                 if(match != null) {
                     opcode = op
@@ -188,7 +183,7 @@ object Chip8Assembler {
                 }
             }
 
-            if(match != null) {
+            if (match != null) {
                 val ops = listOf("nnn", "x", "y", "kk", "n")
 
                 ops.forEach { operand ->
@@ -197,17 +192,17 @@ object Chip8Assembler {
                             var pattern = it.value
 
                             if (operand != "x" && operand != "y") {
-                                if (identifier.matches(pattern)) {
+                                if (identifierRegex.matches(pattern)) {
                                     //Check if local label
-                                    if(pattern.startsWith('.'))
+                                    if (pattern.startsWith('.'))
                                         pattern += lastLabel
 
-                                    if(pattern !in labels.keys)
+                                    if (pattern !in labels.keys)
                                         throw ParsingError("label $pattern is used but undefined", index)
 
                                     pattern = labels[pattern]!!.toString(16).uppercase()
 
-                                } else if (expression.matches(pattern)) {
+                                } else if (expressionRegex.matches(pattern)) {
                                     pattern = pattern.evalExpression(labels)?.toString(16)?.uppercase() ?: throw ParsingError("expression $pattern is malformed", index)
                                 }
                                 else if (pattern.decodeLiteral() != null) {
@@ -238,7 +233,7 @@ object Chip8Assembler {
                 rom.add((opcode shr 8) and 0xff)
                 rom.add(opcode and 0xff)
             }
-            else if(line.startsWith("db")) {
+            else if (line.startsWith("db")) {
                 val values = line.removePrefix("db").replace(Regex(" +"), "").split(',').filter {it.isNotBlank()}
 
                 values.forEach {
@@ -248,7 +243,7 @@ object Chip8Assembler {
                     rom.add(decoded and 0xff)
                 }
             }
-            else if(!line.startsWith("equ")){
+            else if (!line.startsWith("equ")) {
                 throw ParsingError("Unrecognized instruction/directive", index)
             }
         }

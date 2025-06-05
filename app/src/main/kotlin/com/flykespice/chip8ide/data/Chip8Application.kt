@@ -22,7 +22,7 @@ class Chip8Application : Application() {
         chip8IdeManager = Chip8IdeManager(onBeepStateChange = onSoundStateChange)
 
         launcherOpener = activityResultRegistry.register("opener", ActivityResultContracts.OpenDocument()) { uri ->
-            if(uri != null) {
+            if (uri != null) {
                 val stream = contentResolver.openInputStream(uri)
                 if(stream != null) {
                     val data = stream.readBytes()
@@ -39,7 +39,7 @@ class Chip8Application : Application() {
         }
 
         launcherSaver = activityResultRegistry.register("saver", ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-            if(uri != null) {
+            if (uri != null) {
                 val stream = contentResolver.openOutputStream(uri)
 
                 if(stream != null) {
@@ -50,10 +50,10 @@ class Chip8Application : Application() {
         }
 
         launcherExporter = activityResultRegistry.register("exporter", ActivityResultContracts.CreateDocument("application/*")) { uri ->
-            if(uri != null) {
+            if (uri != null) {
                 val stream = contentResolver.openOutputStream(uri)
 
-                if(stream != null) {
+                if (stream != null) {
                     chip8IdeManager.export(stream)
                     stream.close()
                 }
