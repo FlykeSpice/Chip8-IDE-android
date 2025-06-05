@@ -111,7 +111,7 @@ fun getSprites(_code: String, onError: (String, Int) -> Unit): List<Pair<String,
             break
         }
 
-        if (!code[i].matches(Regex("${Chip8Assembler.identifier}:"))) {
+        if (!code[i].matches(Regex("${Chip8Assembler.identifierRegex}:"))) {
             onError(".sprite must be followed by a label", i.adjustForBlanks())
             break
         }
