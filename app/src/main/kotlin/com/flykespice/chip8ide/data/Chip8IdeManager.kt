@@ -96,69 +96,62 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
         }
     }
 
-    fun updateSprite(label: String, spriteData: BooleanArray) {
+    fun updateSprite(label: String, sprite: BooleanArray) {
         val lines = code.value.lines()
         val lineLabel = lines.indexOfFirst { it.startsWith("$label:") }
 
         require(lineLabel != -1) {
-            "label $label must be present in the code"
+            "Label $label must be present in the code"
         }
 
-        require(lineLabel > 0) {
-            "Line must be preceded by a .sprite directive"
-        }
-
-        if (!lines[lineLabel-1].startsWith(".sprite"))
-            throw IllegalStateException("Label doesn't precede a .sprite directive")
+        if (lineLabel == 0 || !lines[lineLabel-1].startsWith(".sprite"))
+            throw IllegalStateException("Label $label doesn't precede a .sprite directive")
 
         val newLines = ArrayList(lines.slice(0..lineLabel))
 
         var newLiteral = 0
-        for (i in spriteData.indices) {
-            val pos = i % 8
+        for (i in sprite.indices) {
 
-            if (i != 0 && pos == 0) {
+            if (i != 0 && (i % 7) == 0) {
                 newLines.add("db 0b"+newLiteral.toString(2).padStart(8,'0'))
                 newLiteral = 0
             }
 
-            if (spriteData[i])
-                newLiteral = newLiteral or (1 shl (7-pos))
+            newLiteral = (newLiteral shl 1) or (if (sprite[i]) 1 else 0)
         }
         newLines.add("db 0b"+newLiteral.toString(2).padStart(8,'0'))
 
         //Now merge the remaining lines
-        var remainingHeight = lines[lineLabel-1].split(" ")[1].toInt()
+        var remainingBytes = lines[lineLabel-1].split(" ")[1].toInt()
         for (l in lineLabel+1 until lines.size) {
             val line = lines[l]
-            newLines.add(line)
 
-            if (!line.startsWith("db"))
+            if (!line.startsWith("db")) {
+                newLines.add(line)
                 continue
+            }
 
             val literals = line
                 .substringAfter("db")
                 .substringBefore(';')
                 .split(',')
 
-            if (literals.size > remainingHeight) {
-                newLines.removeAt(newLines.lastIndex)
-                newLines.add("db "+literals.slice(remainingHeight until literals.size).joinToString(","))
-                remainingHeight = 0
+            if (literals.size > remainingBytes) {
+                newLines.add("db "+literals.slice(remainingBytes until literals.size).joinToString(","))
+                remainingBytes = 0
             } else {
-                newLines.removeAt(newLines.lastIndex)
-                remainingHeight -= literals.size
+                remainingBytes -= literals.size
             }
 
-            if (remainingHeight <= 0) {
-                if (l <= lines.size-1)
+            if (remainingBytes == 0) {
+                if (l != lines.lastIndex)
                     newLines.addAll(lines.slice(l+1 until lines.size))
                 break
             }
         }
 
-        if (remainingHeight > 0)
-            throw IllegalStateException("TODO")
+        if (remainingBytes > 0)
+            TODO("Deal with the exceptional case when we're at the end of code and there is less line than needed for .sprite directive")
 
         _code.value = newLines.joinToString("\n")
     }
@@ -173,15 +166,12 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
 
         var newLiteral = 0
         for (i in sprite.indices) {
-            val pos = i % 8
-
-            if (i != 0 && pos == 0) {
+            if (i != 0 && (i % 8) == 0) {
                 newLines.add("db 0b"+newLiteral.toString(2).padStart(8,'0'))
                 newLiteral = 0
             }
 
-            if (sprite[i])
-                newLiteral = newLiteral or (1 shl (7-pos))
+            newLiteral = (newLiteral shl 1) or (if (sprite[i]) 1 else 0)
         }
         newLines.add("db 0b"+newLiteral.toString(2).padStart(8,'0'))
 
