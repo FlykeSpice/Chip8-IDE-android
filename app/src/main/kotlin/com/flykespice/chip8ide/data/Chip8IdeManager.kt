@@ -11,7 +11,7 @@ import java.io.OutputStream
 
 /**
  * Class that manages all the IDE operations, including the opened project
- * @param onBeepStateChange the lambda that will be called whenever Chip8's better state changes
+ * @param onBeepStateChange the lambda that will be called whenever Chip8's beeper state changes
  */
 class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
 
