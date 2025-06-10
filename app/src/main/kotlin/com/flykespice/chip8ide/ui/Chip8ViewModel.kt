@@ -24,6 +24,9 @@ class Chip8ViewModel(
     private var _ideState = MutableStateFlow<IdeState>(IdeState.idle())
     val ideState get() = _ideState.asStateFlow()
 
+    private var _sprites = MutableStateFlow(emptyList<Pair<String, BooleanArray>>())
+    val sprites get() = _sprites.asStateFlow()
+
     val paused get() = chip8IdeManager.paused
     val frameBuffer get() = chip8IdeManager.frameBuffer
     val code get() = chip8IdeManager.code
@@ -100,6 +103,14 @@ class Chip8ViewModel(
                 chip8IdeManager.updateSprite(label, sprite)
             else
                 chip8IdeManager.createNewSprite(label, sprite)
+        }
+    }
+
+    fun getSprites() {
+        viewModelScope.launch {
+            _sprites.value = chip8IdeManager.getSprites(
+                onError = { reason, line -> _ideState.value = IdeState.error(reason, line) }
+            )
         }
     }
 }

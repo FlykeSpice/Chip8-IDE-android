@@ -33,8 +33,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 
 data class SettingItem(
     val name: String,
@@ -46,7 +44,7 @@ data class SettingItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settings: ImmutableList<SettingItem>, onPressBack: () -> Unit) {
+fun SettingsScreen(settings: List<SettingItem>, onPressBack: () -> Unit) {
 
     var openedDialogSetting by remember { mutableStateOf<SettingItem?>(null) }
 
@@ -165,7 +163,7 @@ private fun SettingsScreenPreview() {
                 clockRate.intValue = it as Int
             }
         )
-    ).toImmutableList()
+    )
 
     Chip8IDETheme {
         Surface {

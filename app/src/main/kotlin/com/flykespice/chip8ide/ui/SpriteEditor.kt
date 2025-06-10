@@ -56,109 +56,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.flykespice.chip8ide.chip8.Chip8Assembler
-import com.flykespice.chip8ide.chip8.decodeLiteral
+import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
-
-fun getSprites(_code: String, onError: (String, Int) -> Unit): List<Pair<String, BooleanArray>> {
-
-    fun Int.adjustForBlanks(): Int {
-        var result = 0
-        var index = 0
-
-        val lines = _code.lines().map { it.substringBefore(';').trim() }
-
-        if (this >= lines.size) {
-            return lines.size
-        }
-
-        while (index != this) {
-            if (lines[index].isNotBlank())
-                index++
-
-            result++
-        }
-        return result
-    }
-
-    val code = _code.lines().map { it.substringBefore(';').trim() }.filter { it.isNotBlank() }
-
-    val sprites = ArrayList<Pair<String, BooleanArray>>()
-
-    var i = 0
-    outer@ while (i < code.size) {
-        val line = code[i]
-
-        if (!line.startsWith(".sprite")) {
-            i++
-            continue
-        }
-
-        val numRows: Int = try {
-            line.split(" ")[1].toInt()
-        } catch (_: IndexOutOfBoundsException) {
-            onError(".sprite must be accompanied by a parameter specifying number of rows", i.adjustForBlanks())
-            break
-        } catch (e: NumberFormatException) {
-            onError(".sprite: ${e.message}", i.adjustForBlanks())
-            break
-        }
-
-        if (++i >= code.size) {
-            onError(".sprite is used at the end of a line", i.adjustForBlanks())
-            break
-        }
-
-        if (!code[i].matches(Regex("${Chip8Assembler.identifierRegex}:"))) {
-            onError(".sprite must be followed by a label", i.adjustForBlanks())
-            break
-        }
-
-        val label = code[i].substringBefore(':')
-        val rows = ArrayList<BooleanArray>(numRows)
-        while (++i < code.size && code[i].startsWith("db") && rows.size < numRows) {
-
-            val literals = try {
-                code[i]
-                    .removePrefix("db")
-                    .replace(" ", "")
-                    .split(',')
-                    .filter { it.isNotBlank() }
-                    .map { it.decodeLiteral()!! }
-            } catch (_: NullPointerException) {
-                onError(".sprite: db must contain a literal", i.adjustForBlanks())
-                break@outer
-            }
-
-            for (literal in literals) {
-                val row = BooleanArray(8)
-
-                for(bit in 0..7) {
-                    row[bit] = (literal and (1 shl bit)) != 0
-                }
-
-                rows.add(row)
-            }
-        }
-
-        if (rows.size < numRows) {
-            onError("Insufficient sprite data rows, it was specified $numRows but only found ${rows.size}", i.adjustForBlanks())
-            break
-        }
-
-        sprites.add(Pair(label, BooleanArray(rows.size*8) { rows[it / 8][it%8] } ))
-    }
-
-    return sprites
-}
-
 
 /* TODO: Refactor this.... */
 @Composable
 fun SpriteEditorBrowser(
-    sprites: ImmutableList<Pair<String, BooleanArray>>,
+    sprites: List<Pair<String, BooleanArray>>,
     modifier: Modifier = Modifier,
     onClicked: (String) -> Unit
 ) {
@@ -517,8 +421,7 @@ private fun SpriteEditorPreview() {
         false, false, true, true, true, false, false, false,
         false, false, true, true, true, false, false, false,
         false, false, true, true, true, false, false, false,
-
-        )
+    )
 
     Chip8IDETheme {
         Surface (Modifier.fillMaxSize()) {
@@ -551,10 +454,13 @@ private fun SpriteEditorBrowserPreview() {
                 db 0b00111100
         """.trimIndent()
 
+    val chip8IdeManager = Chip8IdeManager({_ -> })
+    chip8IdeManager.update(test)
+
     Chip8IDETheme {
         Surface (modifier = Modifier.fillMaxSize()) {
             SpriteEditorBrowser(
-                getSprites(test, onError = {_,_ ->}).toImmutableList(),
+                sprites = chip8IdeManager.getSprites(onError = {_,_ ->}),
                 modifier = Modifier.fillMaxSize(),
                 onClicked = {}
             )

@@ -23,7 +23,6 @@ import com.flykespice.chip8ide.ui.MainScreen
 import com.flykespice.chip8ide.ui.SettingItem
 import com.flykespice.chip8ide.ui.SettingsScreen
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
-import kotlinx.collections.immutable.toImmutableList
 import java.io.FileNotFoundException
 
 private fun ByteArray.toBooleanArray(): BooleanArray {
@@ -182,7 +181,7 @@ class MainActivity : ComponentActivity() {
                                         chip8Application.chip8IdeManager.setClockRate(it as Int)
                                     }
                                 )
-                            ).toImmutableList()
+                            )
                         }
 
                         Surface(Modifier.fillMaxSize()) {

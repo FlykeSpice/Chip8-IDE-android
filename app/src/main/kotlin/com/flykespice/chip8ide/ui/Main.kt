@@ -1,7 +1,6 @@
 package com.flykespice.chip8ide.ui
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,7 +63,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
-import kotlinx.collections.immutable.toImmutableList
 import kotlin.math.abs
 
 @Composable
@@ -214,7 +212,6 @@ fun MainScreen(
 
                     val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
                     searchMatches = matches
-
                     searchCurrent = matches.indexOfFirst { it.first > old }.takeIf { it != -1 } ?: 0
                 },
                 onSearchNext = { if (searchMatches.isNotEmpty()) searchCurrent = (searchCurrent+1) % searchMatches.size },
@@ -308,34 +305,19 @@ fun MainScreen(
 
             composable("graphics") {
 
-//                if (navController.previousBackStackEntry?.destination?.route == "graphics/editor") {
-//                    currentLabel = null
-//                } else if (currentLabel != null) {
-//                    navController.navigate("graphics/editor")
-//                    return@composable
-//                }
-
-                val code by chip8ViewModel.code.collectAsState()
-                val sprites = remember {
-                    getSprites(
-                        _code = code,
-                        onError = { err, line ->
-                            chip8ViewModel.setIdeState(IdeState.error(err, line))
-                            Log.e("", "sprite error: $err at $line")
-                        }
-                    )
+                val sprites by chip8ViewModel.sprites.collectAsState()
+                LaunchedEffect(true) {
+                    chip8ViewModel.getSprites()
                 }
 
                 Surface(Modifier.padding(paddingValues)) {
 
-                    val sprites = remember(sprites) { sprites.toImmutableList() }
                     SpriteEditorBrowser(
                         sprites = sprites,
                         modifier = Modifier.fillMaxSize(),
                         onClicked = { label ->
                             currentLabel = label
                             currentSprite = sprites.find { it.first == label }!!.second
-
                             navController.navigate("graphics/editor")
                         }
                     )
