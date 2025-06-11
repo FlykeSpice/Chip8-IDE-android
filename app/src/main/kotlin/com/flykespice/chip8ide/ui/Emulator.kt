@@ -9,11 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 
 @Preview
@@ -106,7 +103,7 @@ private fun EmulatorUI(
                     if (frameBuffer[i])
                         drawRect(
                             color = Color.Gray,
-                            topLeft = Offset((i % 64) * pixelWith, (i / 64).toInt() * pixelHeight),
+                            topLeft = Offset((i % 64) * pixelWith, (i / 64) * pixelHeight),
                             size = pixelSize
                         )
                 }
@@ -139,40 +136,20 @@ private fun EmulationControls (
     Row {
 
         Button(onClick = chooseFile) {
-            Icon(Icons.Default.FolderOpen, "")
+            Icon(painterResource(R.drawable.folder_24px), "")
         }
 
         Spacer(modifier = Modifier.padding(10.dp))
 
         Button(onClick = { pause(!paused) }) {
-
-            Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = null)
+            Icon(painterResource(if (paused) R.drawable.play_arrow_24px else R.drawable.pause_24px), contentDescription = null)
         }
 
         Spacer(modifier = Modifier.padding(10.dp))
 
         Button(onClick = reset) {
-            Icon(Icons.Default.Refresh, "Reset")
+            Icon(painterResource(R.drawable.refresh_24px), "Reset")
         }
-
-        //Button(onClick = { /*TODO: Open emulation settings*/ }) { Icon(Icons.Default.Settings,"")}
-
-        /*Text("Clock:", style = MaterialTheme.typography.headlineSmall)
-
-        Surface(color = Color.LightGray) {
-            var temp by remember { mutableStateOf(chip8.clockRate.toString()) }
-            val focusManager = LocalFocusManager.current
-            BasicTextField(
-                value = temp,
-                onValueChange = {temp = it},
-                //label = {Text("Clock:")},
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(0.7f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number,imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions (onDone = { chip8.clockRate = temp.toInt(); focusManager.clearFocus()}),
-                textStyle = MaterialTheme.typography.headlineSmall
-            )
-        }*/
     }
 }
 

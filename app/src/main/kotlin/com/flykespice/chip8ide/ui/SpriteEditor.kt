@@ -18,11 +18,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.sharp.AspectRatio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -52,10 +47,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 
@@ -163,7 +160,7 @@ fun SpriteEditorScreen(
                 },
                 modifier = Modifier.weight(0.3f)
             ) {
-                Icon(Icons.Default.Edit, "click to edit label's name")
+                Icon(painterResource(R.drawable.edit_24px), "click to edit label's name")
             }
         }
 
@@ -206,19 +203,19 @@ fun SpriteEditorScreen(
                     selected = pencil,
                     onClick = { pencil = true },
                     shape = MaterialTheme.shapes.medium) {
-                    Icon(Icons.Default.Brush, "Brush mode")
+                    Icon(painterResource(R.drawable.brush_24px), "Brush mode")
                 }
 
                 SegmentedButton(
                     selected = !pencil,
                     onClick = { pencil = false },
                     shape = MaterialTheme.shapes.medium) {
-                    Icon(Icons.Default.Delete, "Delete mode")
+                    Icon(painterResource(R.drawable.delete_24px), "Delete mode")
                 }
             }
 
             IconButton(onClick = {openedResizeDialog = true}) {
-                Icon(Icons.Sharp.AspectRatio, "Resize the sprite")
+                Icon(painterResource(R.drawable.aspect_ratio_24px), "Resize the sprite")
             }
         }
 

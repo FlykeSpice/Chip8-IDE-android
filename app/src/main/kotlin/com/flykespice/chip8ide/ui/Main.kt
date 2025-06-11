@@ -12,18 +12,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QuestionMark
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -52,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,6 +50,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
 import kotlin.math.abs
@@ -182,7 +172,6 @@ fun MainScreen(
         )
     }
 
-
     Scaffold(
         topBar = {
             MainTopAppBar(
@@ -228,7 +217,7 @@ fun MainScreen(
                 ideState = ideState,
                 paddingValues = PaddingValues(0.dp)
             )
-       },
+        },
         floatingActionButton = {
             MainFloatingActionButton(destination = currentDestination.value?.destination?.route, onClicked = {
                 val destination = currentDestination.value!!.destination.route
@@ -348,8 +337,8 @@ fun MainScreen(
 @Composable
 private fun MainFloatingActionButton(destination: String?, onClicked: () -> Unit) {
     val map = mapOf(
-        "editor" to Icons.Filled.PlayArrow,
-        "graphics" to Icons.Filled.Add
+        "editor" to painterResource(R.drawable.play_arrow_24px),
+        "graphics" to painterResource(R.drawable.add_24px)
     )
 
     if (destination == null || destination !in map.keys)
@@ -447,38 +436,38 @@ private fun MainTopAppBar(
             },
             navigationIcon = {
                 IconButton(onClick = { expandedMenu.value = !expandedMenu.value }) {
-                    Icon(Icons.Filled.Menu, contentDescription = null)
+                    Icon(painterResource(R.drawable.menu_24px), contentDescription = null)
                 }
             },
             actions = {
 
                 if (searchMode) {
                     IconButton(onClick = onSearchPrev) {
-                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous match")
+                        Icon(painterResource(R.drawable.keyboard_arrow_up_24px), contentDescription = "Previous match")
                     }
 
                     IconButton(onClick = onSearchNext) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next match")
+                        Icon(painterResource(R.drawable.keyboard_arrow_down_24px), contentDescription = "Next match")
                     }
                 } else if (destination == "editor") {
                     //Search bar
                     IconButton(onClick = {searchMode = true}) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search for keyword")
+                        Icon(painterResource(R.drawable.search_24px), contentDescription = "Search for keyword")
                     }
                 }
 
                 if (searchMode) {
                     IconButton(onClick = { searchMode = false }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Cancel search")
+                        Icon(painterResource(R.drawable.close_24px), contentDescription = "Cancel search")
                     }
                 } else if (destination == "editor") {
                     // RowScope here, so these icons will be placed horizontally
                     IconButton(onClick = onClickHelp) {
-                        Icon(Icons.Filled.QuestionMark, contentDescription = "Help")
+                        Icon(painterResource(R.drawable.question_mark_24px), contentDescription = "Help")
                     }
                 } else if (destination == "emulator") {
                     IconButton(onClick = onClickSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(painterResource(R.drawable.settings_24px), contentDescription = "Settings")
                     }
                 }
             }
@@ -495,13 +484,11 @@ private fun MainTopAppBar(
 @Composable
 private fun MainBottomAppBar(navController: NavController) {
 
-    val destinations = remember {
-        listOf(
-            "editor" to Icons.Filled.Edit,
-            "graphics" to Icons.Filled.Face,
-            "emulator" to Icons.Filled.PlayArrow
-        )
-    }
+    val destinations = listOf(
+        "editor" to painterResource(R.drawable.editor),
+        "graphics" to painterResource(R.drawable.brush_24px),
+        "emulator" to painterResource(R.drawable.play_arrow_24px)
+    )
 
     val backstackState = navController.currentBackStackEntryAsState()
 

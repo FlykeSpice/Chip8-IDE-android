@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,11 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
 
@@ -652,7 +652,7 @@ private fun InstructionReference(onClickReturn: () -> Unit = {}, title: String, 
         topBar = {
             TopAppBar(
                 title = { Text("$title reference") },
-                navigationIcon = { IconButton(onClick = onClickReturn) { Icon(Icons.Default.ArrowBack, "Return to previous page") }},
+                navigationIcon = { IconButton(onClick = onClickReturn) { Icon(painterResource(R.drawable.arrow_back_24px), "Return to previous page") }},
                 scrollBehavior = scrollBehavior
             )
         }
