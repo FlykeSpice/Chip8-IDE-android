@@ -58,6 +58,10 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.12.0-alpha01")
     implementation("androidx.navigation:navigation-compose:2.9.0")
 
+    //Koin DI framework
+    implementation("io.insert-koin:koin-core:4.1.0")
+    implementation("io.insert-koin:koin-androidx-compose:4.1.0")
+
     testImplementation("junit:junit:4.13.2")
 
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

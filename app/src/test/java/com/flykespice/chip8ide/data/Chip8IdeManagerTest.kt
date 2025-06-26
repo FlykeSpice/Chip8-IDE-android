@@ -37,10 +37,10 @@ private val test1 =
     """.trimIndent()
 
 class Chip8IdeManagerTest {
-    private val chip8IdeManager = Chip8IdeManager{}
+    private val chip8IdeManager = Chip8IdeManager()
     @Test
     fun getSprites() {
-        chip8IdeManager.update(test)
+        chip8IdeManager.updateCode(test)
         val result = chip8IdeManager.getSprites { _,_ -> }
 
         assertEquals(2, result.size)

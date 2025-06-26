@@ -8,16 +8,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.FileOutputStream
 import java.io.OutputStream
+import kotlin.math.truncate
+
+sealed class IdeState(val message: String) {
+    class idle: IdeState(message = "")
+    class assembling: IdeState("Assembling...")
+    class success: IdeState("Successfully assembled!")
+    data class error(val reason: String, val line: Int): IdeState("Error: $reason at $line")
+}
 
 /**
- * Class that manages all the IDE operations, including the opened project
- * @param onBeepStateChange the lambda that will be called whenever Chip8's beeper state changes
+ * Class that manages all the IDE operations regarding the working project, it houses all the necessary states to be consumed by the respective viewmodels
  */
-class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
+class Chip8IdeManager {
 
     val chip8 = Chip8(
-        onScreenUpdate = { _frameBuffer.value = it },
-        onBeepStateChange = onBeepStateChange
+        onScreenUpdate = { _frameBuffer.value = it }
     )
 
     private lateinit var rom: ByteArray
@@ -37,14 +43,21 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
     private val _frameBuffer = MutableStateFlow(BooleanArray(64*32))
     val frameBuffer = _frameBuffer.asStateFlow()
 
-    fun load(text: String) {
+    private val _ideState = MutableStateFlow<IdeState>(IdeState.idle())
+    val ideState get() = _ideState.asStateFlow()
+
+    fun setIdeState(ideState: IdeState) {
+        _ideState.value = ideState
+    }
+
+    fun loadCode(text: String) {
         chip8.stop()
         pause(true)
-        update(text)
+        updateCode(text)
         chip8.reset()
     }
 
-    fun load(binary: ByteArray) {
+    fun importROM(binary: ByteArray) {
         chip8.stop()
         pause(true)
         chip8.load(binary)
@@ -52,7 +65,7 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
         chip8.reset()
     }
 
-    fun update(code: String) {
+    fun updateCode(code: String) {
         _code.value = code
     }
 
@@ -60,10 +73,15 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
      * Assemble the code
      * @throws Chip8Assembler.ParsingError if code contains incorrect syntax
      */
-    fun assemble(): ByteArray {
-        rom = Chip8Assembler.assemble(_code.value)
-        chip8.load(rom)
-        return rom
+    fun assemble() {
+        try {
+            _ideState.value = IdeState.assembling()
+            rom = Chip8Assembler.assemble(_code.value)
+            chip8.load(rom)
+            _ideState.value = IdeState.success()
+        } catch (e: Chip8Assembler.ParsingError) {
+            _ideState.value = IdeState.error(e.message, e.line)
+        }
     }
 
     fun pause(flag: Boolean) {
@@ -84,16 +102,14 @@ class Chip8IdeManager(onBeepStateChange: (Boolean) -> Unit) {
 
     //Save as assembly file
     fun save(stream: OutputStream) {
-        (stream as FileOutputStream).run {
-            channel.truncate(0)
-            write(code.value.toByteArray())
+        stream.use {
+            it.write(code.value.toByteArray())
         }
     }
 
     fun export(stream: OutputStream) {
-        (stream as FileOutputStream).run {
-            channel.truncate(0)
-            write(rom)
+        stream.use {
+            it.write(rom)
         }
     }
 

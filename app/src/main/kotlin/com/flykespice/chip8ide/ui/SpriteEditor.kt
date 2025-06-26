@@ -98,7 +98,7 @@ fun SpriteEditorBrowser(
 fun SpriteEditorScreen(
     label: String,
     sprite: BooleanArray,
-    onSubmit : (String, BooleanArray) -> Unit,
+    onClickSubmit : () -> Unit,
     //onLabelChanged: (String) -> Unit
 ) {
     var label by remember { mutableStateOf(label) }
@@ -223,7 +223,7 @@ fun SpriteEditorScreen(
 
         Button(
             modifier = Modifier.align(alignment = Alignment.CenterHorizontally),
-            onClick = { onSubmit(label, sprite.value.copyOf()) }
+            onClick = onClickSubmit
         ) {
             Text("Submit to Code")
         }
@@ -422,7 +422,7 @@ private fun SpriteEditorPreview() {
 
     Chip8IDETheme {
         Surface (Modifier.fillMaxSize()) {
-            SpriteEditorScreen(label = "sprite_test_foo", sprite = test, onSubmit = {_, _ ->})
+            SpriteEditorScreen(label = "sprite_test_foo", sprite = test, onClickSubmit = {})
         }
     }
 }
@@ -451,8 +451,8 @@ private fun SpriteEditorBrowserPreview() {
                 db 0b00111100
         """.trimIndent()
 
-    val chip8IdeManager = Chip8IdeManager({_ -> })
-    chip8IdeManager.update(test)
+    val chip8IdeManager = Chip8IdeManager()
+    chip8IdeManager.updateCode(test)
 
     Chip8IDETheme {
         Surface (modifier = Modifier.fillMaxSize()) {

@@ -1,6 +1,9 @@
 package com.flykespice.chip8ide.ui
 
-import android.annotation.SuppressLint
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,15 +38,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -51,8 +55,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.flykespice.chip8ide.R
-import com.flykespice.chip8ide.data.Chip8IdeManager
+import com.flykespice.chip8ide.data.IdeState
+import com.flykespice.chip8ide.ui.viewmodel.EditorViewModel
+import com.flykespice.chip8ide.ui.viewmodel.EmulatorViewModel
+import com.flykespice.chip8ide.ui.viewmodel.ScaffoldViewModel
+import com.flykespice.chip8ide.ui.viewmodel.SpriteBrowserViewModel
+import com.flykespice.chip8ide.ui.viewmodel.SpriteEditorViewModel
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
+import org.koin.androidx.compose.koinViewModel
 import kotlin.math.abs
 
 @Composable
@@ -77,36 +87,87 @@ private fun MainSnackbar(
     }
 }
 
-@SuppressLint("ViewModelConstructorInComposable")
+/*@SuppressLint("ViewModelConstructorInComposable")
 @Preview
 @Composable
 private fun MainScreenPreview() {
     val chip8ViewModel = Chip8ViewModel(Chip8IdeManager({}), {}, {}, {})
     MainScreen(chip8ViewModel = chip8ViewModel, onNavigate = {})
-}
+}*/
 
 private enum class OpenedDialog { newFile, openFile, exportFile, saveFile, newSprite, none }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    chip8ViewModel: Chip8ViewModel,
     startDestination: String = "editor",
-    onNavigate: (String) -> Unit,
+    onNavigateToOuter: (String) -> Unit,
     currentSpriteLabel: String? = null,
-    currentSpriteData: BooleanArray = BooleanArray(0),
+    currentSpriteData: BooleanArray = BooleanArray(0)
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     var openedDialog by remember { mutableStateOf(OpenedDialog.none) }
+    var openedFileName by remember { mutableStateOf("") }
 
     var currentLabel by remember { mutableStateOf(currentSpriteLabel) }
     var currentSprite by remember { mutableStateOf(currentSpriteData) }
+
+    val scaffoldViewModel = koinViewModel<ScaffoldViewModel>()
+
+    val openLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val cursor = context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null)
+
+            openedFileName = ""
+            if (cursor != null) {
+                cursor.moveToFirst()
+                openedFileName = cursor.getString(0)
+                cursor.close()
+            }
+
+            val stream = context.contentResolver.openInputStream(uri)
+            if (stream != null) {
+                val data = stream.readBytes()
+                stream.close()
+
+                val text = data.decodeToString()
+                if("\uFFFD" !in text) {
+                    scaffoldViewModel.load(text)
+                } else {
+                    scaffoldViewModel.importROM(data)
+                }
+            }
+        }
+    }
+
+    val saveLauncher = rememberLauncherForActivityResult(CreateDocument("text/plain")) { uri ->
+        if (uri != null) {
+            val stream = context.contentResolver.openOutputStream(uri)
+
+            if(stream != null) {
+                scaffoldViewModel.save(stream)
+            }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/*")) { uri ->
+        if (uri != null) {
+            val stream = context.contentResolver.openOutputStream(uri)
+
+            if (stream != null) {
+                scaffoldViewModel.export(stream)
+            }
+        }
+    }
 
     when (openedDialog) {
         OpenedDialog.none -> {}
 
         OpenedDialog.openFile -> {
+            openLauncher.launch(arrayOf("application/*", "text/plain"))
+            openedDialog = OpenedDialog.none
         }
 
         OpenedDialog.newFile -> {
@@ -121,8 +182,7 @@ fun MainScreen(
 
                         TextButton(
                             onClick = {
-                                chip8ViewModel.new()
-                                openedDialog = OpenedDialog.none
+                                openedDialog = OpenedDialog.openFile
                                 navController.navigate("editor")
                             }) {
                             Text("Confirm")
@@ -133,17 +193,13 @@ fun MainScreen(
         }
 
         OpenedDialog.saveFile -> {
-            SaveDialog(
-                confirm = chip8ViewModel::save,
-                close = { openedDialog = OpenedDialog.none }
-            )
+            saveLauncher.launch(openedFileName)
+            openedDialog = OpenedDialog.none
         }
 
         OpenedDialog.exportFile -> {
-            SaveDialog(
-                confirm = chip8ViewModel::export,
-                close = { openedDialog = OpenedDialog.none }
-            )
+            exportLauncher.launch(openedFileName)
+            openedDialog = OpenedDialog.none
         }
 
         OpenedDialog.newSprite -> {
@@ -159,9 +215,6 @@ fun MainScreen(
         }
     }
 
-    var searchMatches: List<Pair<Int,Int>> = listOf()
-    var searchCurrent by remember { mutableStateOf(0) }
-
     val currentDestination = navController.currentBackStackEntryAsState()
 
     val destinations = remember {
@@ -172,47 +225,26 @@ fun MainScreen(
         )
     }
 
+    var searchKeyword by remember { mutableStateOf("") }
+    val searchMatches = remember { mutableStateListOf<Pair<Int,Int>>() }
+    var searchCurrent by remember { mutableIntStateOf(0) }
+
     Scaffold(
         topBar = {
             MainTopAppBar(
                 currentDestination.value?.destination?.route ?: "editor",
-                onClickOpen = { chip8ViewModel.chooseFile(); navController.navigate("editor") },
-                onSearch = { keyword ->
-
-                    if (keyword.isEmpty()) {
-                        searchMatches = listOf()
-                        return@MainTopAppBar
-                    }
-
-                    val code = chip8ViewModel.code.value
-                    val matches = ArrayList<Pair<Int,Int>>()
-
-                    var i = 0
-                    while (i < code.length) {
-                        i = code.indexOf(keyword, i)
-
-                        if (i == -1)
-                            break
-
-                        matches.add(i to i+keyword.length)
-                        i += keyword.length
-                    }
-
-
-                    val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
-                    searchMatches = matches
-                    searchCurrent = matches.indexOfFirst { it.first > old }.takeIf { it != -1 } ?: 0
-                },
+                onClickOpen = { openedDialog = OpenedDialog.openFile; navController.navigate("editor") },
+                onSearch = { searchKeyword = it },
                 onSearchNext = { if (searchMatches.isNotEmpty()) searchCurrent = (searchCurrent+1) % searchMatches.size },
                 onSearchPrev = { if (searchMatches.isNotEmpty()) searchCurrent = (searchCurrent-1) % searchMatches.size },
                 onOpenDialog = { openedDialog = it  },
-                onClickHelp = { onNavigate("help") },
-                onClickSettings = { onNavigate("settings") }
+                onClickHelp = { onNavigateToOuter("help") },
+                onClickSettings = { onNavigateToOuter("settings") }
             )
         },
         bottomBar = { MainBottomAppBar(navController) },
         snackbarHost = {
-            val ideState by chip8ViewModel.ideState.collectAsState()
+            val ideState by scaffoldViewModel.ideState.collectAsState()
             MainSnackbar(
                 ideState = ideState,
                 paddingValues = PaddingValues(0.dp)
@@ -222,7 +254,7 @@ fun MainScreen(
             MainFloatingActionButton(destination = currentDestination.value?.destination?.route, onClicked = {
                 val destination = currentDestination.value!!.destination.route
                 if (destination == "editor") {
-                    chip8ViewModel.assemble()
+                    scaffoldViewModel.assemble()
                 } else if (destination == "graphics") {
                     //Prompt dialog to create
                     openedDialog = OpenedDialog.newSprite
@@ -264,16 +296,39 @@ fun MainScreen(
         ) {
 
             composable("editor") {
-                val code = chip8ViewModel.code.collectAsState()
+                val editorViewModel = koinViewModel<EditorViewModel>()
+                val code by editorViewModel.code.collectAsState()
 
-                var textFieldValue by remember { mutableStateOf(TextFieldValue(code.value)) }
+                var textFieldValue by remember { mutableStateOf(TextFieldValue(code)) }
+
+                LaunchedEffect(searchKeyword) {
+                    val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
+                    searchMatches.clear()
+
+                    if (searchKeyword.isEmpty()) {
+                        return@LaunchedEffect
+                    }
+
+                    var i = 0
+                    while (i < code.length) {
+                        i = code.indexOf(searchKeyword, i)
+
+                        if (i == -1)
+                            break
+
+                        searchMatches.add(i to i+searchKeyword.length)
+                        i += searchKeyword.length
+                    }
+
+                    searchCurrent = searchMatches.indexOfFirst { it.first > old }.takeIf { it != -1 } ?: 0
+                }
 
                 LaunchedEffect(searchCurrent) {
 
                     if (searchMatches.isEmpty())
                         return@LaunchedEffect
 
-                    val text = code.value
+                    val text = code
                     val (begin, end) = searchMatches[searchCurrent]
                     val line = text.slice(0..begin).lines().size
 
@@ -286,21 +341,17 @@ fun MainScreen(
                 EditorScreen(
                     textField = textFieldValue,
                     scrollState = editorScrollState,
-                    onValueChange = { textFieldValue = it; chip8ViewModel.updateCode(textFieldValue.text) },
+                    onValueChange = { textFieldValue = it; editorViewModel.updateCode(textFieldValue.text) },
                     styleText = { it.toChip8SyntaxAnnotatedString() },
                     paddingValues =  paddingValues
                 )
             }
 
             composable("graphics") {
-
-                val sprites by chip8ViewModel.sprites.collectAsState()
-                LaunchedEffect(true) {
-                    chip8ViewModel.getSprites()
-                }
+                val spriteBrowserViewModel = koinViewModel<SpriteBrowserViewModel>()
+                val sprites by spriteBrowserViewModel.sprites.collectAsState()
 
                 Surface(Modifier.padding(paddingValues)) {
-
                     SpriteEditorBrowser(
                         sprites = sprites,
                         modifier = Modifier.fillMaxSize(),
@@ -314,6 +365,8 @@ fun MainScreen(
             }
 
             composable("graphics/editor") {
+                val spriteViewModel = koinViewModel<SpriteEditorViewModel>()
+
                 //Go to editor with
                 if (currentLabel == null)
                     throw IllegalStateException("Navigated to graphics/editor composable without a label or sprite")
@@ -321,13 +374,25 @@ fun MainScreen(
                 SpriteEditorScreen(
                     label = currentLabel!!,
                     sprite = currentSprite,
-                    onSubmit = chip8ViewModel::updateSprite
+                    onClickSubmit = { spriteViewModel.submit(currentLabel!!) }
                 )
             }
 
             composable("emulator") {
-                chip8ViewModel.stop()
-                EmulatorUI(chip8ViewModel = chip8ViewModel, paddingValues = paddingValues)
+                val emulatorViewModel = koinViewModel<EmulatorViewModel>()
+
+                val framebuffer by emulatorViewModel.framebuffer.collectAsState()
+                val paused by emulatorViewModel.paused.collectAsState()
+
+                EmulatorUI(
+                    framebuffer = framebuffer,
+                    paused = paused,
+                    onClickReset = emulatorViewModel::reset,
+                    onClickPause = emulatorViewModel::pause,
+                    setKey = emulatorViewModel::setKey,
+                    chooseFile = {},
+                    paddingValues = paddingValues
+                )
             }
 
         }
@@ -361,42 +426,6 @@ private fun MainDropDownMenu(
         DropdownMenuItem(text = {Text("Export") }, onClick = { onOpenDialog(OpenedDialog.exportFile); expanded.value = false },/* enabled = isNotEmpty*/)
 
         //DropdownMenuItem(text = {Text("Save As") }, onClick = {  })
-    }
-}
-
-@Preview
-@Composable
-private fun SaveDialogPreview() {
-    SaveDialog(
-        confirm = {},
-        close = {}
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SaveDialog(confirm: (String) -> Unit, close: () -> Unit) {
-    var filename by remember { mutableStateOf("") }
-    val confirmEnabled = remember(filename) { filename != "" }
-
-    AlertDialog(onDismissRequest = { filename = filename; close() }) {
-        Surface (modifier = Modifier.wrapContentSize(), shape = MaterialTheme.shapes.large) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                TextField(value = filename, onValueChange = {filename = it}, singleLine = true)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                TextButton(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    onClick = {
-                        confirm(filename)
-                        close() },
-                    enabled = confirmEnabled
-                ) {
-                    Text("Confirm")
-                }
-            }
-        }
     }
 }
 

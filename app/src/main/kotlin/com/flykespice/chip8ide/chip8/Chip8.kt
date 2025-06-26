@@ -6,6 +6,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
@@ -18,12 +20,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Chip-8 emulator
  * @param onScreenUpdate lambda to be called whenever screen is updated
- * @param onBeepStateChange lambda to be called whenever beeper state changes
  */
-class Chip8(
-    val onScreenUpdate: (BooleanArray) -> Unit,
-    val onBeepStateChange: (Boolean) -> Unit
-) {
+class Chip8(val onScreenUpdate: (BooleanArray) -> Unit) {
 
     private object CpuRegisters {
         var v = IntArray(16)
@@ -194,6 +192,9 @@ class Chip8(
             }?.second
     }
 
+    private val _beepState = MutableStateFlow(false)
+    val beepState get() = _beepState.asStateFlow()
+
     var clockRate = 500
         set(value) {
             require(value > 0) {
@@ -294,7 +295,7 @@ class Chip8(
                 if (CpuRegisters.st > 0)
                     CpuRegisters.st--
                 else
-                    onBeepStateChange(false)
+                    _beepState.value = false
 
                 onScreenUpdate(display.copyOf())
                 delay(16)
@@ -409,7 +410,7 @@ class Chip8(
             "Fx15" -> { dt = v[x] }
             "Fx18" -> {
                 st = v[x]
-                onBeepStateChange(true)
+                _beepState.value = true
             }
             "Fx1E" -> { I = (I + v[x]) and 0xFFF }
 

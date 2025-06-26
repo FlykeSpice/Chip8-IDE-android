@@ -14,15 +14,19 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.flykespice.chip8ide.data.Chip8Application
+import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.HelpIndex
 import com.flykespice.chip8ide.ui.MainScreen
 import com.flykespice.chip8ide.ui.SettingItem
 import com.flykespice.chip8ide.ui.SettingsScreen
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import java.io.FileNotFoundException
 
 private fun ByteArray.toBooleanArray(): BooleanArray {
@@ -65,14 +69,13 @@ private fun BooleanArray.toByteArray(): ByteArray {
 
 
 class MainActivity : ComponentActivity() {
-
-    lateinit var chip8Application: Chip8Application
-
     var currentSpriteLabel: String? = null
     var currentSpriteData = BooleanArray(0)
 
     lateinit var audioTrack: AudioTrack
     lateinit var audioBuffer: ByteArray
+
+    val chip8IdeManager: Chip8IdeManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,29 +101,27 @@ class MainActivity : ComponentActivity() {
         audioTrack.write(audioBuffer, 0, audioBuffer.size)
 
         val result = audioTrack.setLoopPoints(0, (audioBuffer.size / 2) / 2, -1)
-
         if (result != AudioTrack.SUCCESS)
             throw IllegalStateException("AudioTrack: ${audioTrack.errorToString(result)}")
 
         audioTrack.pause()
 
-        chip8Application = (application as Chip8Application)
-        chip8Application.provideInstance(activityResultRegistry) {
-            //TODO: Defer pause to when AudioTracks stops playing
-            if (it && audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING)
-                audioTrack.play()
-           else if (!it && audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING)
-                audioTrack.pause()
+        lifecycleScope.launch {
+            chip8IdeManager.chip8.beepState.collect { state ->
+                if (state && audioTrack.playState != AudioTrack.PLAYSTATE_PLAYING)
+                    audioTrack.play()
+                else if (!state && audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING)
+                    audioTrack.pause()
+            }
         }
 
         try {
             val file = applicationContext.openFileInput("code")
-            chip8Application.chip8IdeManager.load(file.readBytes().decodeToString())
+            chip8IdeManager.loadCode(file.readBytes().decodeToString())
             file.close()
         } catch (_: FileNotFoundException) { /*ignore*/ }
 
         //TODO: Save and reload current Sprite being edited if any
-
 //        try {
 //            var file = applicationContext.openFileInput("sprite_label")
 //            currentSpriteLabel = file.readBytes().decodeToString()
@@ -144,9 +145,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     composable("main") {
                         MainScreen(
-                            chip8ViewModel = chip8Application.chip8ViewModel,
-                            //startDestination = if (currentSpriteLabel != null) "graphics/editor" else "editor",
-                            onNavigate = navController::navigate,
+                            startDestination = if (currentSpriteLabel != null) "graphics/editor" else "editor",
+                            onNavigateToOuter = navController::navigate,
                             currentSpriteLabel = currentSpriteLabel,
                             currentSpriteData = currentSpriteData
                         )
@@ -159,8 +159,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("settings") {
-                        val realMode = chip8Application.chip8IdeManager.realMode.collectAsState()
-                        val clockRate = chip8Application.chip8IdeManager.clockRate.collectAsState()
+                        val realMode = chip8IdeManager.realMode.collectAsState()
+                        val clockRate = chip8IdeManager.clockRate.collectAsState()
 
                         val settings = remember {
                             listOf(
@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
                                     desc = "Check to make Chip-8 emulator behave like it used on original hardware",
                                     value = realMode,
                                     onValueChange = {
-                                        chip8Application.chip8IdeManager.setRealMode(it as Boolean)
+                                        chip8IdeManager.setRealMode(it as Boolean)
                                     }
                                 ),
                                 SettingItem(
@@ -178,7 +178,7 @@ class MainActivity : ComponentActivity() {
                                     value = clockRate,
                                     enabled = derivedStateOf { !realMode.value },
                                     onValueChange = {
-                                        chip8Application.chip8IdeManager.setClockRate(it as Int)
+                                        chip8IdeManager.setClockRate(it as Int)
                                     }
                                 )
                             )
@@ -195,7 +195,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         var file = applicationContext.openFileOutput("code", 0)
-        file.write(chip8Application.chip8IdeManager.code.value.encodeToByteArray())
+        file.write(chip8IdeManager.code.value.encodeToByteArray())
         file.close()
         audioTrack.stop()
 
@@ -217,7 +217,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         var file = applicationContext.openFileOutput("code", 0)
-        file.write(chip8Application.chip8IdeManager.code.value.encodeToByteArray())
+        file.write(chip8IdeManager.code.value.encodeToByteArray())
         file.close()
 
 //        if (currentSpriteLabel != null) {

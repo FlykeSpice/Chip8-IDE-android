@@ -16,8 +16,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,13 +34,13 @@ import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 @Composable
 private fun EmulatorUIPreview() {
     Chip8IDETheme {
-        val frameBuffer = remember { mutableStateOf(BooleanArray(64*32)) }
+        val frameBuffer by remember { mutableStateOf(BooleanArray(64*32)) }
         val paused by remember { mutableStateOf(false) }
 
-        EmulatorUI(frameBuffer = frameBuffer,
+        EmulatorUI(framebuffer = frameBuffer,
             paused = paused,
-            reset = {},
-            pause = {},
+            onClickReset = {},
+            onClickPause = {},
             chooseFile = {},
             setKey = {_, _ -> },
             paddingValues = PaddingValues(0.dp)
@@ -51,27 +49,11 @@ private fun EmulatorUIPreview() {
 }
 
 @Composable
-fun EmulatorUI(chip8ViewModel: Chip8ViewModel, paddingValues: PaddingValues) {
-    val paused = chip8ViewModel.paused.collectAsState()
-    val frameBuffer = chip8ViewModel.frameBuffer.collectAsState()
-
-    EmulatorUI(
-        frameBuffer = frameBuffer,
-        paused = paused.value,
-        reset = chip8ViewModel::reset,
-        pause = chip8ViewModel::pause,
-        setKey = chip8ViewModel::setKey,
-        chooseFile = chip8ViewModel::chooseFile,
-        paddingValues = paddingValues
-    )
-}
-
-@Composable
-private fun EmulatorUI(
-    frameBuffer: State<BooleanArray>,
+fun EmulatorUI(
+    framebuffer: BooleanArray,
     paused: Boolean,
-    reset: () -> Unit,
-    pause: (Boolean) -> Unit,
+    onClickReset: () -> Unit,
+    onClickPause: (Boolean) -> Unit,
     setKey: (Int, Boolean) -> Unit,
     chooseFile: () -> Unit,
     paddingValues: PaddingValues
@@ -96,11 +78,9 @@ private fun EmulatorUI(
                 val pixelWith: Float = size.width / 64
                 val pixelHeight: Float = size.height / 32
 
-                val frameBuffer = frameBuffer.value
-
                 val pixelSize = Size(pixelWith, pixelHeight)
-                for (i in frameBuffer.indices) {
-                    if (frameBuffer[i])
+                for (i in framebuffer.indices) {
+                    if (framebuffer[i])
                         drawRect(
                             color = Color.Gray,
                             topLeft = Offset((i % 64) * pixelWith, (i / 64) * pixelHeight),
@@ -110,7 +90,7 @@ private fun EmulatorUI(
             }
 
             Surface(modifier = Modifier.weight(0.1f)) {
-                EmulationControls(paused = paused, reset = reset, pause = pause, chooseFile = chooseFile)
+                EmulationControls(paused = paused, reset = onClickReset, pause = onClickPause, chooseFile = chooseFile)
             }
 
             Surface(
