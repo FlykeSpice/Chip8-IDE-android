@@ -30,6 +30,7 @@ class ScaffoldViewModel(private val chip8IdeManager: Chip8IdeManager) : ViewMode
     fun save(outputStream: OutputStream) {
         chip8IdeManager.save(outputStream)
     }
+
     fun export(outputStream: OutputStream) {
         chip8IdeManager.export(outputStream)
     }

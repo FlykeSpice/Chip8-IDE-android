@@ -1,7 +1,6 @@
 package com.flykespice.chip8ide.ui
 
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -28,18 +27,19 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreInterceptKeyBeforeSoftKeyboard
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.ui.theme.Chip8IDETheme
 import com.flykespice.chip8ide.ui.visualtransformer.toChip8SyntaxAnnotatedString
@@ -726,8 +726,6 @@ private fun HelpLabelPreview() {
 
 @Composable
 fun HelpIndex() {
-    val navController = rememberNavController()
-
     data class Page(val headline: String, val desc: String, val route: String)
     
     val pages = listOf(
@@ -742,72 +740,63 @@ fun HelpIndex() {
         Page("Instructions", "instruction reference", "instructions_reference"),
     )
 
-    NavHost(
-        modifier = Modifier.safeContentPadding(),
-        navController = navController,
-        startDestination = "index",
-        enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left) },
-        exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left) },
-        popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right) },
-        popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right) }
-    ) {
-        composable("index") {
-            Column {
-                Text("Help", style = MaterialTheme.typography.headlineMedium)
+    val backstack = remember { mutableStateListOf("index") }
+    NavDisplay(
+        backStack = backstack,
+        modifier = Modifier.safeContentPadding()
+    ) { key ->
+        when (key) {
+            "index" -> NavEntry(key) {
+                Column {
+                    Text("Help", style = MaterialTheme.typography.headlineMedium)
 
-                for (page in pages) {
-                    ListItem(
-                        modifier = Modifier.clickable { navController.navigate(page.route) },
-                        headlineContent = { Text(page.headline) },
-                        supportingContent = { Text(page.desc) },
-                    )
-                }
+                    for (page in pages) {
+                        ListItem(
+                            modifier = Modifier.clickable { backstack.add(page.route) },
+                            headlineContent = { Text(page.headline) },
+                            supportingContent = { Text(page.desc) },
+                        )
+                    }
 
-                Spacer(Modifier.height(20.dp))
-                Text("references", style = MaterialTheme.typography.titleLarge)
-                for (page in referencePages) {
-                    ListItem(
-                        modifier = Modifier.clickable { navController.navigate(page.route) },
-                        headlineContent = { Text(page.headline) },
-                        supportingContent = { Text(page.desc) },
-                    )
+                    Spacer(Modifier.height(20.dp))
+                    Text("references", style = MaterialTheme.typography.titleLarge)
+                    for (page in referencePages) {
+                        ListItem(
+                            modifier = Modifier.clickable { backstack.add(page.route) },
+                            headlineContent = { Text(page.headline) },
+                            supportingContent = { Text(page.desc) },
+                        )
+                    }
                 }
             }
+
+            "intro" -> NavEntry(key) { HelpIntroduction() }
+
+            "literals" -> NavEntry(key) { HelpLiteral() }
+
+            "labels" -> NavEntry(key) { HelpLabel() }
+
+            "instructions" -> NavEntry(key) { HelpInstructions() }
+
+            "directives" -> NavEntry(key) {
+                InstructionReference(
+                    onClickReturn = backstack::removeLastOrNull,
+                    title = "Directives",
+                    instructions = directives
+                )
+            }
+
+            "instructions_reference" -> NavEntry(key) {
+                InstructionReference(
+                    onClickReturn = backstack::removeLastOrNull,
+                    title = "Instructions",
+                    instructions = instructionsInfo
+                )
+            }
+
+
+            else -> throw IllegalStateException()
         }
-
-        composable("intro") {
-            HelpIntroduction()
-        }
-
-        composable("literals") {
-            HelpLiteral()
-        }
-
-        composable("labels") {
-            HelpLabel()
-        }
-
-        composable("instructions") {
-            HelpInstructions()
-        }
-
-        composable("directives") {
-            InstructionReference(
-                onClickReturn = navController::popBackStack,
-                title = "Directives",
-                instructions = directives
-            )
-        }
-
-        composable("instructions_reference") {
-            InstructionReference(
-                onClickReturn = navController::popBackStack,
-                title = "Instructions",
-                instructions = instructionsInfo
-            )
-        }
-
-
     }
 }
 

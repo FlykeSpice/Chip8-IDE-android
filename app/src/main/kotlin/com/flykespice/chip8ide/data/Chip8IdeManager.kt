@@ -1,14 +1,12 @@
 package com.flykespice.chip8ide.data
 
-import com.flykespice.chip8ide.chip8.Chip8Assembler
 import com.flykespice.chip8ide.chip8.Chip8
+import com.flykespice.chip8ide.chip8.Chip8Assembler
 import com.flykespice.chip8ide.chip8.Chip8Disassembler
 import com.flykespice.chip8ide.chip8.decodeLiteral
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.io.FileOutputStream
 import java.io.OutputStream
-import kotlin.math.truncate
 
 sealed class IdeState(val message: String) {
     class idle: IdeState(message = "")

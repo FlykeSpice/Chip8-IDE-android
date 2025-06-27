@@ -4,7 +4,10 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
-import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -49,11 +52,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.flykespice.chip8ide.R
 import com.flykespice.chip8ide.data.IdeState
 import com.flykespice.chip8ide.ui.viewmodel.EditorViewModel
@@ -105,8 +105,8 @@ fun MainScreen(
     currentSpriteLabel: String? = null,
     currentSpriteData: BooleanArray = BooleanArray(0)
 ) {
-    val navController = rememberNavController()
     val context = LocalContext.current
+    var currentDestination by remember { mutableStateOf("editor") }
 
     var openedDialog by remember { mutableStateOf(OpenedDialog.none) }
     var openedFileName by remember { mutableStateOf("") }
@@ -183,7 +183,7 @@ fun MainScreen(
                         TextButton(
                             onClick = {
                                 openedDialog = OpenedDialog.openFile
-                                navController.navigate("editor")
+                                currentDestination = "editor"
                             }) {
                             Text("Confirm")
                         }
@@ -208,21 +208,10 @@ fun MainScreen(
                     currentLabel = label
                     currentSprite = BooleanArray(8*height)
                     openedDialog = OpenedDialog.none
-                    navController.navigate("graphics/editor")
                 },
                 onCancel = { openedDialog = OpenedDialog.none }
             )
         }
-    }
-
-    val currentDestination = navController.currentBackStackEntryAsState()
-
-    val destinations = remember {
-        listOf(
-            "editor",
-            "graphics",
-            "emulator"
-        )
     }
 
     var searchKeyword by remember { mutableStateOf("") }
@@ -232,8 +221,8 @@ fun MainScreen(
     Scaffold(
         topBar = {
             MainTopAppBar(
-                currentDestination.value?.destination?.route ?: "editor",
-                onClickOpen = { openedDialog = OpenedDialog.openFile; navController.navigate("editor") },
+                destination = currentDestination,
+                onClickOpen = { openedDialog = OpenedDialog.openFile; currentDestination = "editor" },
                 onSearch = { searchKeyword = it },
                 onSearchNext = { if (searchMatches.isNotEmpty()) searchCurrent = (searchCurrent+1) % searchMatches.size },
                 onSearchPrev = { if (searchMatches.isNotEmpty()) searchCurrent = (searchCurrent-1) % searchMatches.size },
@@ -242,7 +231,7 @@ fun MainScreen(
                 onClickSettings = { onNavigateToOuter("settings") }
             )
         },
-        bottomBar = { MainBottomAppBar(navController) },
+        bottomBar = { MainBottomAppBar(currentDestination, onNavigateTo = { currentDestination = it }) },
         snackbarHost = {
             val ideState by scaffoldViewModel.ideState.collectAsState()
             MainSnackbar(
@@ -251,11 +240,10 @@ fun MainScreen(
             )
         },
         floatingActionButton = {
-            MainFloatingActionButton(destination = currentDestination.value?.destination?.route, onClicked = {
-                val destination = currentDestination.value!!.destination.route
-                if (destination == "editor") {
+            MainFloatingActionButton(destination = currentDestination, onClicked = {
+                if (currentDestination == "editor") {
                     scaffoldViewModel.assemble()
-                } else if (destination == "graphics") {
+                } else if (currentDestination == "graphics") {
                     //Prompt dialog to create
                     openedDialog = OpenedDialog.newSprite
                 }
@@ -266,151 +254,150 @@ fun MainScreen(
         //Need to hoist here because stupid NavHost keeps resetting when I put it inside NavHost.
         val editorScrollState = rememberScrollState()
 
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            enterTransition = {
-                val previousDestination = navController.previousBackStackEntry?.destination?.route ?: "editor"
-                val currentDestination = currentDestination.value?.destination?.route ?: "editor"
+        val navigationOrder = remember { listOf("editor", "graphics", "emulator") }
 
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.run {
-                    if (destinations.indexOf(currentDestination) >= destinations.indexOf(previousDestination)) {
-                        Left
-                    } else {
-                        Right
-                    }
-                })
-            },
-            exitTransition = {
-                val previousDestination = navController.previousBackStackEntry?.destination?.route ?: "editor"
-                val currentDestination = currentDestination.value?.destination?.route ?: "editor"
-
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.run {
-                    if (destinations.indexOf(currentDestination) >= destinations.indexOf(previousDestination)) {
-                        Right
-                    } else {
-                        Left
-                    }
-                })
-            }
-        ) {
-
-            composable("editor") {
-                val editorViewModel = koinViewModel<EditorViewModel>()
-                val code by editorViewModel.code.collectAsState()
-
-                var textFieldValue by remember { mutableStateOf(TextFieldValue(code)) }
-
-                LaunchedEffect(searchKeyword) {
-                    val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
-                    searchMatches.clear()
-
-                    if (searchKeyword.isEmpty()) {
-                        return@LaunchedEffect
-                    }
-
-                    var i = 0
-                    while (i < code.length) {
-                        i = code.indexOf(searchKeyword, i)
-
-                        if (i == -1)
-                            break
-
-                        searchMatches.add(i to i+searchKeyword.length)
-                        i += searchKeyword.length
-                    }
-
-                    searchCurrent = searchMatches.indexOfFirst { it.first > old }.takeIf { it != -1 } ?: 0
+        AnimatedContent(
+            targetState = currentDestination,
+            transitionSpec = {
+                if (navigationOrder.indexOf(targetState) > navigationOrder.indexOf(initialState)) {
+                    slideInHorizontally { width -> width } togetherWith slideOutHorizontally { width -> -width }
+                } else {
+                    slideInHorizontally { width -> -width } togetherWith slideOutHorizontally { width -> width }
                 }
-
-                LaunchedEffect(searchCurrent) {
-
-                    if (searchMatches.isEmpty())
-                        return@LaunchedEffect
-
-                    val text = code
-                    val (begin, end) = searchMatches[searchCurrent]
-                    val line = text.slice(0..begin).lines().size
-
-                    val lineHeight = editorScrollState.maxValue / text.lines().size
-                    editorScrollState.scrollTo( abs( (lineHeight * line) - (4*lineHeight) ) )
-
-                    textFieldValue = textFieldValue.copy(selection = TextRange(begin, end))
-                }
-
-                EditorScreen(
-                    textField = textFieldValue,
-                    scrollState = editorScrollState,
-                    onValueChange = { textFieldValue = it; editorViewModel.updateCode(textFieldValue.text) },
-                    styleText = { it.toChip8SyntaxAnnotatedString() },
-                    paddingValues =  paddingValues
-                )
             }
+        ) { destination ->
+            when (destination) {
+                "editor" -> {
+                    val editorViewModel = koinViewModel<EditorViewModel>()
+                    val code by editorViewModel.code.collectAsState()
 
-            composable("graphics") {
-                val spriteBrowserViewModel = koinViewModel<SpriteBrowserViewModel>()
-                val sprites by spriteBrowserViewModel.sprites.collectAsState()
+                    var textFieldValue by remember { mutableStateOf(TextFieldValue(code)) }
 
-                Surface(Modifier.padding(paddingValues)) {
-                    SpriteEditorBrowser(
-                        sprites = sprites,
-                        modifier = Modifier.fillMaxSize(),
-                        onClicked = { label ->
-                            currentLabel = label
-                            currentSprite = sprites.find { it.first == label }!!.second
-                            navController.navigate("graphics/editor")
+                    LaunchedEffect(searchKeyword) {
+                        val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
+                        searchMatches.clear()
+
+                        if (searchKeyword.isEmpty()) {
+                            return@LaunchedEffect
                         }
+
+                        var i = 0
+                        while (i < code.length) {
+                            i = code.indexOf(searchKeyword, i)
+
+                            if (i == -1)
+                                break
+
+                            searchMatches.add(i to i+searchKeyword.length)
+                            i += searchKeyword.length
+                        }
+
+                        searchCurrent = searchMatches.indexOfFirst { it.first > old }.takeIf { it != -1 } ?: 0
+                    }
+
+                    LaunchedEffect(searchCurrent) {
+
+                        if (searchMatches.isEmpty())
+                            return@LaunchedEffect
+
+                        val text = code
+                        val (begin, end) = searchMatches[searchCurrent]
+                        val line = text.slice(0..begin).lines().size
+
+                        val lineHeight = editorScrollState.maxValue / text.lines().size
+                        editorScrollState.scrollTo( abs( (lineHeight * line) - (4*lineHeight) ) )
+
+                        textFieldValue = textFieldValue.copy(selection = TextRange(begin, end))
+                    }
+
+                    EditorScreen(
+                        textField = textFieldValue,
+                        scrollState = editorScrollState,
+                        onValueChange = { textFieldValue = it; editorViewModel.updateCode(textFieldValue.text) },
+                        styleText = { it.toChip8SyntaxAnnotatedString() },
+                        paddingValues =  paddingValues
                     )
                 }
+
+                "graphics" -> {
+                    val backstack = remember { mutableStateListOf("browser") }
+
+                    //We're using the Navigation library here just for the sake of hooking up the back press
+                    NavDisplay(
+                        backStack = backstack,
+                        onBack = { if (backstack.size > 1) backstack.removeLastOrNull() }
+                    ) { key ->
+                        when (key) {
+                            "browser" -> NavEntry(key) {
+                                val spriteBrowserViewModel = koinViewModel<SpriteBrowserViewModel>()
+                                val sprites by spriteBrowserViewModel.sprites.collectAsState()
+
+                                Surface(Modifier.padding(paddingValues)) {
+                                    SpriteEditorBrowser(
+                                        sprites = sprites,
+                                        modifier = Modifier.fillMaxSize(),
+                                        onClicked = { label ->
+                                            currentLabel = label
+                                            currentSprite = sprites.find { it.first == label }!!.second
+                                            backstack.add("sprite_editor")
+                                        }
+                                    )
+                                }
+                            }
+
+                            "sprite_editor" -> NavEntry(key) {
+                                val spriteViewModel = koinViewModel<SpriteEditorViewModel>()
+
+                                //Go to editor with
+                                if (currentLabel == null)
+                                    throw IllegalStateException("Navigated to graphics/editor composable without a label or sprite")
+
+                                SpriteEditorScreen(
+                                    label = currentLabel!!,
+                                    sprite = currentSprite,
+                                    onClickSubmit = { spriteViewModel.submit(currentLabel!!); backstack.removeLastOrNull() }
+                                )
+                            }
+
+                            else -> throw IllegalStateException()
+                        }
+                    }
+                }
+
+                "emulator" -> {
+                    val emulatorViewModel = koinViewModel<EmulatorViewModel>()
+
+                    val framebuffer by emulatorViewModel.framebuffer.collectAsState()
+                    val paused by emulatorViewModel.paused.collectAsState()
+
+                    EmulatorUI(
+                        framebuffer = framebuffer,
+                        paused = paused,
+                        onClickReset = emulatorViewModel::reset,
+                        onClickPause = emulatorViewModel::pause,
+                        setKey = emulatorViewModel::setKey,
+                        chooseFile = {},
+                        paddingValues = paddingValues
+                    )
+                }
+
+                else -> Text("Nothing")
             }
-
-            composable("graphics/editor") {
-                val spriteViewModel = koinViewModel<SpriteEditorViewModel>()
-
-                //Go to editor with
-                if (currentLabel == null)
-                    throw IllegalStateException("Navigated to graphics/editor composable without a label or sprite")
-
-                SpriteEditorScreen(
-                    label = currentLabel!!,
-                    sprite = currentSprite,
-                    onClickSubmit = { spriteViewModel.submit(currentLabel!!) }
-                )
-            }
-
-            composable("emulator") {
-                val emulatorViewModel = koinViewModel<EmulatorViewModel>()
-
-                val framebuffer by emulatorViewModel.framebuffer.collectAsState()
-                val paused by emulatorViewModel.paused.collectAsState()
-
-                EmulatorUI(
-                    framebuffer = framebuffer,
-                    paused = paused,
-                    onClickReset = emulatorViewModel::reset,
-                    onClickPause = emulatorViewModel::pause,
-                    setKey = emulatorViewModel::setKey,
-                    chooseFile = {},
-                    paddingValues = paddingValues
-                )
-            }
-
         }
+
     }
 }
 
 @Composable
-private fun MainFloatingActionButton(destination: String?, onClicked: () -> Unit) {
-    val map = mapOf(
-        "editor" to painterResource(R.drawable.play_arrow_24px),
-        "graphics" to painterResource(R.drawable.add_24px)
-    )
-
-    if (destination == null || destination !in map.keys)
-        return
+private fun MainFloatingActionButton(destination: String, onClicked: () -> Unit) {
+    val icon = when (destination) {
+        "editor" -> painterResource(R.drawable.play_arrow_24px)
+        "graphics" -> painterResource(R.drawable.add_24px)
+        else -> return
+    }
 
     FloatingActionButton(onClick = onClicked) {
-        Icon(map[destination]!!, "")
+        Icon(icon, "")
     }
 }
 @Composable
@@ -511,25 +498,22 @@ private fun MainTopAppBar(
 }
 
 @Composable
-private fun MainBottomAppBar(navController: NavController) {
+private fun MainBottomAppBar(currentDestination: String, onNavigateTo: (String) -> Unit) {
 
     val destinations = listOf(
-        "editor" to painterResource(R.drawable.editor),
-        "graphics" to painterResource(R.drawable.brush_24px),
-        "emulator" to painterResource(R.drawable.play_arrow_24px)
+        "editor" to R.drawable.editor,
+        "graphics" to R.drawable.brush_24px,
+        "emulator" to R.drawable.play_arrow_24px
     )
 
-    val backstackState = navController.currentBackStackEntryAsState()
-
     NavigationBar {
-        for((destination, icon) in destinations) {
+        destinations.forEach { (destination, icon) ->
             NavigationBarItem(
-                selected = backstackState.value?.destination?.route == destination,
-                onClick = {
-                    navController.navigate(destination)
-                },
-                icon = {Icon(icon, "")},
-                label = {Text(destination)})
+                selected = currentDestination == destination,
+                onClick = { onNavigateTo(destination) },
+                icon = { Icon(painterResource(icon), "") },
+                label = { Text(destination) }
+            )
         }
     }
 }

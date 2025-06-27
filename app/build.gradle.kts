@@ -56,7 +56,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.9.0-alpha03")
     implementation("androidx.lifecycle:lifecycle-runtime:2.9.0")
     implementation("androidx.activity:activity-compose:1.12.0-alpha01")
-    implementation("androidx.navigation:navigation-compose:2.9.0")
+
+    implementation("androidx.navigation3:navigation3-runtime:1.0.0-alpha04")
+    implementation("androidx.navigation3:navigation3-ui:1.0.0-alpha04")
 
     //Koin DI framework
     implementation("io.insert-koin:koin-core:4.1.0")

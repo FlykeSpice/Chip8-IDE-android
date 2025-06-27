@@ -6,19 +6,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.flykespice.chip8ide.data.Chip8Application
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.flykespice.chip8ide.data.Chip8IdeManager
 import com.flykespice.chip8ide.ui.HelpIndex
 import com.flykespice.chip8ide.ui.MainScreen
@@ -134,59 +132,61 @@ class MainActivity : ComponentActivity() {
 //        } catch (_: FileNotFoundException) { currentSpriteLabel = null }
 
         setContent {
-            val navController = rememberNavController()
+            val backstack = remember { mutableStateListOf("main") }
 
             Chip8IDETheme {
-                NavHost(
-                    navController = navController,
-                    startDestination = "main",
-                    enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Down) },
-                    popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Up) }
-                ) {
-                    composable("main") {
-                        MainScreen(
-                            startDestination = if (currentSpriteLabel != null) "graphics/editor" else "editor",
-                            onNavigateToOuter = navController::navigate,
-                            currentSpriteLabel = currentSpriteLabel,
-                            currentSpriteData = currentSpriteData
-                        )
-                    }
-
-                    composable("help") {
-                        Surface(Modifier.fillMaxSize()) {
-                            HelpIndex()
-                        }
-                    }
-
-                    composable("settings") {
-                        val realMode = chip8IdeManager.realMode.collectAsState()
-                        val clockRate = chip8IdeManager.clockRate.collectAsState()
-
-                        val settings = remember {
-                            listOf(
-                                SettingItem(
-                                    name = "Real emulation mode",
-                                    desc = "Check to make Chip-8 emulator behave like it used on original hardware",
-                                    value = realMode,
-                                    onValueChange = {
-                                        chip8IdeManager.setRealMode(it as Boolean)
-                                    }
-                                ),
-                                SettingItem(
-                                    name = "Chip-8 clock rate",
-                                    desc = "The clock rate Chip-8 interpreter runs at. This option doesn't takes effect in Real emulation mode.",
-                                    value = clockRate,
-                                    enabled = derivedStateOf { !realMode.value },
-                                    onValueChange = {
-                                        chip8IdeManager.setClockRate(it as Int)
-                                    }
-                                )
+                NavDisplay(
+                    backStack = backstack,
+                    onBack = { if (backstack.size > 1) backstack.removeLastOrNull() }
+                ) { key ->
+                    when (key) {
+                        "main" -> NavEntry(key) {
+                            MainScreen(
+                                startDestination = if (currentSpriteLabel != null) "graphics/editor" else "editor",
+                                onNavigateToOuter = backstack::add,
+                                currentSpriteLabel = currentSpriteLabel,
+                                currentSpriteData = currentSpriteData
                             )
                         }
 
-                        Surface(Modifier.fillMaxSize()) {
-                            SettingsScreen(settings = settings, onPressBack = navController::popBackStack)
+                        "help" -> NavEntry(key) {
+                            Surface(Modifier.fillMaxSize()) {
+                                HelpIndex()
+                            }
                         }
+
+                        "settings" -> NavEntry(key) {
+                            val realMode = chip8IdeManager.realMode.collectAsState()
+                            val clockRate = chip8IdeManager.clockRate.collectAsState()
+
+                            val settings = remember {
+                                listOf(
+                                    SettingItem(
+                                        name = "Real emulation mode",
+                                        desc = "Check to make Chip-8 emulator behave like it used on original hardware",
+                                        value = realMode,
+                                        onValueChange = {
+                                            chip8IdeManager.setRealMode(it as Boolean)
+                                        }
+                                    ),
+                                    SettingItem(
+                                        name = "Chip-8 clock rate",
+                                        desc = "The clock rate Chip-8 interpreter runs at. This option doesn't takes effect in Real emulation mode.",
+                                        value = clockRate,
+                                        enabled = derivedStateOf { !realMode.value },
+                                        onValueChange = {
+                                            chip8IdeManager.setClockRate(it as Int)
+                                        }
+                                    )
+                                )
+                            }
+
+                            Surface(Modifier.fillMaxSize()) {
+                                SettingsScreen(settings = settings, onPressBack = backstack::removeLastOrNull)
+                            }
+                        }
+
+                        else -> throw IllegalStateException("Uknown navigated destination $key")
                     }
                 }
             }
