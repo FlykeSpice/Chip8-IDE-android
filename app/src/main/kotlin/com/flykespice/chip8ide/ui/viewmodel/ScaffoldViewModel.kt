@@ -21,7 +21,7 @@ class ScaffoldViewModel(private val chip8IdeManager: Chip8IdeManager) : ViewMode
         }
     }
 
-    fun importROM(data: ByteArray) {
+    fun importROM(data: IntArray) {
         viewModelScope.launch {
             chip8IdeManager.importROM(data)
         }

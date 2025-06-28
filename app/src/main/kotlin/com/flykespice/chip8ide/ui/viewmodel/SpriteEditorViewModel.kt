@@ -22,6 +22,6 @@ class SpriteEditorViewModel(private val chip8IdeManager: Chip8IdeManager) : View
     }
 
     fun submit(label: String) {
-        chip8IdeManager.createNewSprite(label, _editingSprite.value)
+        chip8IdeManager.updateSprite(label, _editingSprite.value)
     }
 }

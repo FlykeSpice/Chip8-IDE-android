@@ -18,4 +18,9 @@ class EmulatorViewModel(private val chip8IdeManager: Chip8IdeManager) : ViewMode
     fun setKey(key: Int, flag: Boolean) {
         chip8IdeManager.chip8.key[key] = flag
     }
+
+    override fun onCleared() {
+        chip8IdeManager.pause(true)
+        super.onCleared()
+    }
 }

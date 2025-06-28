@@ -12,13 +12,8 @@ object Chip8Disassembler {
         val jumps: ArrayList<Int> = ArrayList()
     )
 
-    /**
-     * Same as Byte.toInt() but no sign extension
-     */
-    private fun Byte.toInt2() = this.toInt().and(0xff)
-
     private fun recursiveDisassemble(
-        rom: ByteArray,
+        rom: IntArray,
         startingAddress: Int,
         info: DisassemblyInfo
     ) {
@@ -36,7 +31,7 @@ object Chip8Disassembler {
             if (instructions.any { it.addr == pc })
                 return
 
-            val opcode = (rom[pc-0x200].toInt2() shl 8) or rom[(pc-0x200)+1].toInt2()
+            val opcode = (rom[pc-0x200] shl 8) or rom[(pc-0x200)+1]
 
             val pattern = opcode.getOpcodePatternOrNull()
             if (pattern == null) {
@@ -121,7 +116,7 @@ object Chip8Disassembler {
         }
     }
 
-    fun disassemble(rom: ByteArray): String {
+    fun disassemble(rom: IntArray): String {
         val info = DisassemblyInfo()
         recursiveDisassemble(rom, 0x200, info)
 

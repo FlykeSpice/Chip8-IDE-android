@@ -15,10 +15,9 @@ package com.flykespice.chip8ide.chip8
 
 private fun String.evalExpression(labels: Map<String, Int>): Int? {
     val tokens = this.removePrefix("(").removeSuffix(")").split("+","-","*").toMutableList()
-    val operators = this.filter { it in "+-*" }
 
-    fun getTokenOrNull(): Int? {
-        val token = tokens.removeAt(tokens.lastIndex)
+    fun getNextTokenOrNull(): Int? {
+        val token = tokens.removeFirstOrNull() ?: return null
 
         return if (Chip8Assembler.identifierRegex.matches(token)) {
             labels[token]
@@ -27,10 +26,11 @@ private fun String.evalExpression(labels: Map<String, Int>): Int? {
         }
     }
 
-    var result = getTokenOrNull() ?: return null
+    var result = getNextTokenOrNull() ?: return null
 
+    val operators = this.filter { it in "+-*" }
     for (operator in operators) {
-        val operand = getTokenOrNull() ?: return null
+        val operand = getNextTokenOrNull() ?: return null
 
         when (operator) {
             '+' -> result += operand
@@ -78,12 +78,11 @@ object Chip8Assembler {
 
     data class ParsingError(override val message: String, val line: Int): Throwable(message)
 
-    fun assemble(code: String): ByteArray {
-
-        val lines = code.lines()
-            .mapIndexed { index, str -> index to str.lowercase().substringBefore(';').trimStart().trimEnd() }
-            .filter { (_, str) -> str.isNotBlank() }
-
+    /**
+     * Attempts to assemble the input text, returning the assembled binary as [IntArray]
+     * @throws [Chip8Assembler.ParsingError] if any error occurred (invalid input)
+     */
+    fun assemble(code: String): IntArray {
         //First process labels
         val labels = HashMap<String, Int>()
 
@@ -94,8 +93,13 @@ object Chip8Assembler {
         //Preprocess labels
         var byteCount = 0x200
         var lastLabel = ""
-        for ((index, line) in lines) {
+
+        code.lines().forEachIndexed { index, _line ->
+            var line = _line.lowercase().substringBefore(';').trimStart().trimEnd()
             val index = index+1
+
+            if (line.isBlank())
+                return@forEachIndexed
 
             var label = line.substringBefore(':').takeIf { it != line }
 
@@ -106,7 +110,6 @@ object Chip8Assembler {
                     throw ParsingError("label $label isn't a valid identifier", index)
 
                 if (label.startsWith('.')) {
-
                     if (lastLabel == "")
                         throw ParsingError("local label $label must be defined after a global label", index)
 
@@ -120,7 +123,7 @@ object Chip8Assembler {
                 pendingLabels.add(label)
             }
 
-            val line = line.substringAfter(':').trimStart()
+            line = line.substringAfter(':').trimStart()
 
             for ((_, pattern) in table) {
                 if (pattern.matches(line)) {
@@ -135,7 +138,7 @@ object Chip8Assembler {
             }
 
             if (line.startsWith(".sprite")) {
-                continue
+                return@forEachIndexed
             }
             else if (line.startsWith("db")) {
                 pendingLabels.forEach {
@@ -164,14 +167,15 @@ object Chip8Assembler {
         if (pendingLabels.isNotEmpty())
             throw ParsingError("labels touch end of code", code.lines().lastIndex+1)
 
-        for ((index, line) in lines) {
-            lastLabel = line.substringBefore(':').takeIf { it != line && !it.startsWith('.')} ?: lastLabel
-
-            val line = line.substringAfter(':').trimStart() //Ignore the labels
+        code.lines().forEachIndexed { index, line ->
+            val line = line.lowercase().substringBefore(';').trimStart().trimEnd()
+                .substringAfter(':').trimStart() //Ignore the labels
             val index = index+1
 
             if (line.isBlank() || line.startsWith(".sprite"))
-                continue
+                return@forEachIndexed
+
+            lastLabel = line.substringBefore(':').takeIf { it != line && !it.startsWith('.')} ?: lastLabel
 
             var match: MatchResult? = null
             var opcode = ""
@@ -201,9 +205,13 @@ object Chip8Assembler {
                                         throw ParsingError("label $pattern is used but undefined", index)
 
                                     pattern = labels[pattern]!!.toString(16).uppercase()
-
                                 } else if (expressionRegex.matches(pattern)) {
-                                    pattern = pattern.evalExpression(labels)?.toString(16)?.uppercase() ?: throw ParsingError("expression $pattern is malformed", index)
+                                    pattern = pattern.evalExpression(labels)?.toString(16)?.uppercase()
+                                        ?: throw ParsingError("expression $pattern is malformed", index)
+
+                                    if (pattern.toInt(16) < 0) {
+                                        throw ParsingError("expression that results into a negative number aren't allowed", index)
+                                    }
                                 }
                                 else if (pattern.decodeLiteral() != null) {
                                     pattern = pattern.decodeLiteral()!!.toString(16).uppercase()
@@ -248,6 +256,6 @@ object Chip8Assembler {
             }
         }
 
-        return rom.map { it.toByte() }.toByteArray()
+        return rom.toIntArray()
     }
 }

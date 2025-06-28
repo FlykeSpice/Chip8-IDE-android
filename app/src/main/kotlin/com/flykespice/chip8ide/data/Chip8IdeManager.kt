@@ -21,10 +21,10 @@ sealed class IdeState(val message: String) {
 class Chip8IdeManager {
 
     val chip8 = Chip8(
-        onScreenUpdate = { _frameBuffer.value = it }
+        onScreenUpdate = { _frameBuffer.value = it.copyOf() }
     )
 
-    private lateinit var rom: ByteArray
+    private lateinit var rom: IntArray
 
     private val _code = MutableStateFlow("")
     val code = _code.asStateFlow()
@@ -55,7 +55,7 @@ class Chip8IdeManager {
         chip8.reset()
     }
 
-    fun importROM(binary: ByteArray) {
+    fun importROM(binary: IntArray) {
         chip8.stop()
         pause(true)
         chip8.load(binary)
@@ -72,6 +72,8 @@ class Chip8IdeManager {
      * @throws Chip8Assembler.ParsingError if code contains incorrect syntax
      */
     fun assemble() {
+        chip8.stop()
+        pause(true)
         try {
             _ideState.value = IdeState.assembling()
             rom = Chip8Assembler.assemble(_code.value)
@@ -107,7 +109,7 @@ class Chip8IdeManager {
 
     fun export(stream: OutputStream) {
         stream.use {
-            it.write(rom)
+            it.write(rom.map { it.toByte() }.toByteArray())
         }
     }
 
@@ -115,8 +117,9 @@ class Chip8IdeManager {
         val lines = code.value.lines()
         val lineLabel = lines.indexOfFirst { it.startsWith("$label:") }
 
-        require(lineLabel != -1) {
-            "Label $label must be present in the code"
+        if (lineLabel == -1) {
+            createNewSprite(label, sprite)
+            return
         }
 
         if (lineLabel == 0 || !lines[lineLabel-1].startsWith(".sprite"))

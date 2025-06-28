@@ -37,7 +37,8 @@ private fun EmulatorUIPreview() {
         val frameBuffer by remember { mutableStateOf(BooleanArray(64*32)) }
         val paused by remember { mutableStateOf(false) }
 
-        EmulatorUI(framebuffer = frameBuffer,
+        EmulatorUI(
+            framebuffer = frameBuffer,
             paused = paused,
             onClickReset = {},
             onClickPause = {},

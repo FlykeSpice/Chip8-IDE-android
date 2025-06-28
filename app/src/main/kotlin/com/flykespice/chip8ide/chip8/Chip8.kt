@@ -58,7 +58,7 @@ class Chip8(val onScreenUpdate: (BooleanArray) -> Unit) {
         private set
 
     private val ram = IntArray(4096)
-    private var rom = ByteArray(0)
+    private var rom = IntArray(0)
 
     private var originalMode = false
 
@@ -210,11 +210,8 @@ class Chip8(val onScreenUpdate: (BooleanArray) -> Unit) {
         ram.fill(0)
         display.fill(false)
 
-        for(i in digits.indices)
-            ram[i] = digits[i]
-
-        for(i in rom.indices)
-            ram[0x200+i] = rom[i].toInt()
+        digits.copyInto(ram)
+        rom.copyInto(ram, 0x200)
 
         key.fill(false)
         keyPressed = -1
@@ -223,9 +220,9 @@ class Chip8(val onScreenUpdate: (BooleanArray) -> Unit) {
         lastPc = 0x200
     }
 
-    fun load(rom: ByteArray) {
-        require(rom.size > (4096-513)) {
-            "Chip-8 rom size ${rom.size} is larger than interpreter memory size ${4096-513}"
+    fun load(rom: IntArray) {
+        require(rom.size <= (4096-512)) { //512 = chip-8 bios size located right at the start of memory
+            "Chip-8 rom size ${rom.size} is larger than interpreter memory size ${4096-512}"
         }
 
         if (mainJob.isActive) {

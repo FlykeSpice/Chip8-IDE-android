@@ -136,7 +136,7 @@ fun MainScreen(
                 if("\uFFFD" !in text) {
                     scaffoldViewModel.load(text)
                 } else {
-                    scaffoldViewModel.importROM(data)
+                    scaffoldViewModel.importROM(data.map { it.toInt() and 0xff }.toIntArray())
                 }
             }
         }
@@ -381,7 +381,7 @@ fun MainScreen(
                     )
                 }
 
-                else -> Text("Nothing")
+                else -> throw IllegalStateException("Tried to navigate to unknown destination $destination")
             }
         }
 

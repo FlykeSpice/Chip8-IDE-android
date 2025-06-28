@@ -8,6 +8,7 @@ private val code =
     """
         ld v0, K
         ld dt, v0
+        ld v2, (10-5)
         vertical: ld v1, dt
         sne v1, #0
         jp vertical
@@ -16,10 +17,11 @@ private val code =
 private val expectedAssembledCode = intArrayOf(
     0xf0,0x0a, //ld v0, k
     0xf0,0x15, //ld dt, v0
+    0x62,0x05, //ld v2, 5 <- (10-5)
     0xf1,0x07, //ld v1, dt
     0x41,0x00, //sne v1, #0
-    0x12,0x04, //jp 0x004
-).map { it.toByte() }.toByteArray()
+    0x12,0x06, //jp 0x006
+)
 
 class Chip8AssemblerTest {
 
