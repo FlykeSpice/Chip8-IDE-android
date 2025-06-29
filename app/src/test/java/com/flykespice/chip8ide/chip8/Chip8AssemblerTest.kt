@@ -11,7 +11,9 @@ private val code =
         ld v2, (10-5)
         vertical: ld v1, dt
         sne v1, #0
+        .locallabel: ld v3, 4
         jp vertical
+        jp .locallabel
     """.trimIndent()
 
 private val expectedAssembledCode = intArrayOf(
@@ -20,7 +22,9 @@ private val expectedAssembledCode = intArrayOf(
     0x62,0x05, //ld v2, 5 <- (10-5)
     0xf1,0x07, //ld v1, dt
     0x41,0x00, //sne v1, #0
-    0x12,0x06, //jp 0x006
+    0x63,0x04, //ld v3, 4
+    0x12,0x06, //jp 0x206
+    0x12,0x0a  //jp 0x20a
 )
 
 class Chip8AssemblerTest {

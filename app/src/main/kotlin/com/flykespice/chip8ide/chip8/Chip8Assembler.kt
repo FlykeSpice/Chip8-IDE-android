@@ -105,7 +105,7 @@ object Chip8Assembler {
 
             if (label != null) {
                 if (label in reservedKeywords)
-                    throw ParsingError("$label is a reserved keyword, can't be used as label", index)
+                    throw ParsingError("\"$label\" is a reserved keyword, can't be used as label", index)
                 else if (!identifierRegex.matches(label))
                     throw ParsingError("label $label isn't a valid identifier", index)
 
@@ -113,6 +113,7 @@ object Chip8Assembler {
                     if (lastLabel == "")
                         throw ParsingError("local label $label must be defined after a global label", index)
 
+                    // Come up with a unique identifier for this local label by appending it with the parent label name
                     label += lastLabel
                 } else if (label in labels.keys) {
                     throw ParsingError("label $label has already been defined before", index)
@@ -125,42 +126,36 @@ object Chip8Assembler {
 
             line = line.substringAfter(':').trimStart()
 
-            for ((_, pattern) in table) {
-                if (pattern.matches(line)) {
-                    pendingLabels.forEach {
-                        labels[it] = byteCount
-                    }
-                    pendingLabels.clear()
-
-                    byteCount += 2
-                    break
-                }
-            }
-
-            if (line.startsWith(".sprite")) {
-                return@forEachIndexed
-            }
-            else if (line.startsWith("db")) {
-                pendingLabels.forEach {
-                    labels[it] = byteCount
-                }
+            table.find { it.second.matches(line) }?.let {
+                pendingLabels.forEach { labels[it] = byteCount }
                 pendingLabels.clear()
 
-                val size = line.removePrefix("db").split(',').filter { it.isNotBlank() }.size
-                byteCount += size
-            } else if (line.startsWith("equ")) {
-                if (label == line) {
-                    throw ParsingError("Missing label for equ directive", index)
+                byteCount += 2
+            }
+
+            when {
+                line.startsWith("db") -> {
+                    pendingLabels.forEach { labels[it] = byteCount }
+                    pendingLabels.clear()
+
+                    val size = line.removePrefix("db").split(',').filter { it.isNotBlank() }.size
+                    byteCount += size
                 }
 
-                val value = line.split(Regex("\\s+")).getOrNull(1)
-                    ?: throw ParsingError("No value specified for equ operand", index)
+                line.startsWith("equ") -> {
+                    if (label == line) {
+                        throw ParsingError("Missing label for equ directive", index)
+                    }
 
-                lastLabel = pendingLabels.removeLastOrNull() ?: throw ParsingError("equ must have a label defined", index)
+                    val value = line.split(Regex("\\s+")).getOrNull(1)
+                        ?: throw ParsingError("No value specified for equ operand", index)
 
-                labels[lastLabel] = value.decodeLiteral() ?: throw ParsingError("equ's $value must be a well-formed literal", index)
+                    lastLabel = pendingLabels.removeLastOrNull() ?: throw ParsingError("equ must have a label defined", index)
 
-                lastLabel = pendingLabels.lastOrNull { !it.startsWith('.') } ?: ""
+                    labels[lastLabel] = value.decodeLiteral() ?: throw ParsingError("equ's $value must be a valid literal", index)
+
+                    lastLabel = pendingLabels.lastOrNull { !it.startsWith('.') } ?: ""
+                }
             }
         }
 
@@ -168,14 +163,15 @@ object Chip8Assembler {
             throw ParsingError("labels touch end of code", code.lines().lastIndex+1)
 
         code.lines().forEachIndexed { index, line ->
+            lastLabel = line.substringBefore(':')
+                .takeIf { it != line && !it.startsWith('.')} ?: lastLabel
+
             val line = line.lowercase().substringBefore(';').trimStart().trimEnd()
                 .substringAfter(':').trimStart() //Ignore the labels
             val index = index+1
 
             if (line.isBlank() || line.startsWith(".sprite"))
                 return@forEachIndexed
-
-            lastLabel = line.substringBefore(':').takeIf { it != line && !it.startsWith('.')} ?: lastLabel
 
             var match: MatchResult? = null
             var opcode = ""
