@@ -12,7 +12,7 @@ class SpriteBrowserViewModel(private val chip8IdeManager: Chip8IdeManager) : Vie
     private var _sprites = MutableStateFlow(emptyList<Pair<String, BooleanArray>>())
     val sprites get() = _sprites.asStateFlow()
 
-    init {
+    fun getSprites() {
         viewModelScope.launch {
             _sprites.value = chip8IdeManager.getSprites { reason, line ->
                 chip8IdeManager.setIdeState(IdeState.error(reason, line))

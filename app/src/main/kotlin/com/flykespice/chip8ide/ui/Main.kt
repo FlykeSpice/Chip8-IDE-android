@@ -3,25 +3,22 @@ package com.flykespice.chip8ide.ui
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
@@ -97,7 +95,9 @@ private fun MainScreenPreview() {
 
 private enum class OpenedDialog { newFile, openFile, exportFile, saveFile, newSprite, none }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun MainScreen(
     startDestination: String = "editor",
@@ -142,7 +142,7 @@ fun MainScreen(
         }
     }
 
-    val saveLauncher = rememberLauncherForActivityResult(CreateDocument("text/plain")) { uri ->
+    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) {
             val stream = context.contentResolver.openOutputStream(uri)
 
@@ -171,25 +171,13 @@ fun MainScreen(
         }
 
         OpenedDialog.newFile -> {
-            AlertDialog(onDismissRequest = { openedDialog = OpenedDialog.none }) {
-                Surface(modifier = Modifier.wrapContentSize(), shape = MaterialTheme.shapes.large) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text("WARNING", style = MaterialTheme.typography.titleLarge)
-
-                        Spacer(modifier = Modifier.height(5.dp))
-
-                        Text("This will erase all your current work\nproceed?")
-
-                        TextButton(
-                            onClick = {
-                                openedDialog = OpenedDialog.openFile
-                                currentDestination = "editor"
-                            }) {
-                            Text("Confirm")
-                        }
-                    }
-                }
-            }
+            AlertDialog(
+                onDismissRequest = { openedDialog = OpenedDialog.none },
+                confirmButton = { TextButton(onClick = { openedDialog = OpenedDialog.none; scaffoldViewModel.new() }) { Text("Confirm") } },
+                dismissButton = { TextButton(onClick = { openedDialog = OpenedDialog.none }) { Text("Cancel" ) } },
+                title = { Text("WARNING") },
+                text  = { Text("This will erase all your current work\nProceed?", textAlign = TextAlign.Center) }
+            )
         }
 
         OpenedDialog.saveFile -> {
@@ -202,16 +190,7 @@ fun MainScreen(
             openedDialog = OpenedDialog.none
         }
 
-        OpenedDialog.newSprite -> {
-            NewSpriteDialog(
-                onCreate = { label, height ->
-                    currentLabel = label
-                    currentSprite = BooleanArray(8*height)
-                    openedDialog = OpenedDialog.none
-                },
-                onCancel = { openedDialog = OpenedDialog.none }
-            )
-        }
+        OpenedDialog.newSprite -> { /* handled in sprites screen... */}
     }
 
     var searchKeyword by remember { mutableStateOf("") }
@@ -271,7 +250,8 @@ fun MainScreen(
                     val editorViewModel = koinViewModel<EditorViewModel>()
                     val code by editorViewModel.code.collectAsState()
 
-                    var textFieldValue by remember { mutableStateOf(TextFieldValue(code)) }
+                    val projectChanged by scaffoldViewModel.projectChanged.collectAsState()
+                    var textFieldValue by remember(projectChanged) { mutableStateOf(TextFieldValue(code)) }
 
                     LaunchedEffect(searchKeyword) {
                         val old = if (searchMatches.isNotEmpty()) searchMatches[searchCurrent].first else -1
@@ -322,6 +302,18 @@ fun MainScreen(
                 "graphics" -> {
                     val backstack = remember { mutableStateListOf("browser") }
 
+                    if (openedDialog == OpenedDialog.newSprite) {
+                        NewSpriteDialog(
+                            onCreate = { label, height ->
+                                currentLabel = label
+                                currentSprite = BooleanArray(8*height)
+                                openedDialog = OpenedDialog.none
+                                backstack.add("sprite_editor")
+                            },
+                            onCancel = { openedDialog = OpenedDialog.none }
+                        )
+                    }
+
                     //We're using the Navigation library here just for the sake of hooking up the back press
                     NavDisplay(
                         backStack = backstack,
@@ -331,6 +323,10 @@ fun MainScreen(
                             "browser" -> NavEntry(key) {
                                 val spriteBrowserViewModel = koinViewModel<SpriteBrowserViewModel>()
                                 val sprites by spriteBrowserViewModel.sprites.collectAsState()
+
+                                LaunchedEffect(true) {
+                                    spriteBrowserViewModel.getSprites()
+                                }
 
                                 Surface(Modifier.padding(paddingValues)) {
                                     SpriteEditorBrowser(

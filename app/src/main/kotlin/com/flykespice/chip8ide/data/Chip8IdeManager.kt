@@ -48,6 +48,13 @@ class Chip8IdeManager {
         _ideState.value = ideState
     }
 
+    fun new() {
+        chip8.stop()
+        pause(true)
+        chip8.reset()
+        _code.value = ""
+    }
+
     fun loadCode(text: String) {
         chip8.stop()
         pause(true)
