@@ -457,7 +457,7 @@ private fun SpriteEditorBrowserPreview() {
     Chip8IDETheme {
         Surface (modifier = Modifier.fillMaxSize()) {
             SpriteEditorBrowser(
-                sprites = chip8IdeManager.getSprites(onError = {_,_ ->}),
+                sprites = chip8IdeManager.getSprites(),
                 modifier = Modifier.fillMaxSize(),
                 onClicked = {}
             )

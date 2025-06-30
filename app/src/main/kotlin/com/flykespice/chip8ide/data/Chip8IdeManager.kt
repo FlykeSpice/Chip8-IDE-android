@@ -203,77 +203,69 @@ class Chip8IdeManager {
         _code.value = newLines.joinToString("\n")
     }
 
-    fun getSprites(onError: (String, Int) -> Unit): List<Pair<String, BooleanArray>> {
+    fun getSprites(): List<Pair<String, BooleanArray>> {
 
-        fun Int.adjustForBlanks(): Int {
-            var result = 0
-            var index = 0
+        fun error(reason: String, line: Int) = setIdeState(IdeState.error(reason, line))
 
-            val lines = _code.value.lines().map { it.substringBefore(';').trim() }
-
-            if (this >= lines.size) {
-                return lines.size
-            }
-
-            while (index != this) {
-                if (lines[index].isNotBlank())
-                    index++
-
-                result++
-            }
-            return result
-        }
-
-        val code = _code.value.lines().map { it.substringBefore(';').trim() }.filter { it.isNotBlank() }
+        val pair = _code.value.lines()
+            .mapIndexed { index, line -> index+1 to line.substringBefore(';').trim() }
+            .filter { it.second.isNotBlank() }
+        
+        val lines   = pair.map { it.second }
+        val indexes = pair.map { it.first }
 
         val sprites = ArrayList<Pair<String, BooleanArray>>()
 
-        var i = 0
-        outer@ while (i < code.size) {
-            val line = code[i]
+        var l = 0
+        while (l < pair.size) {
+            val line = lines[l]
 
             if (!line.startsWith(".sprite")) {
-                i++
+                l++
                 continue
             }
 
-            val numRows: Int = try {
+            val numRows = try {
                 line.split(" ")[1].toInt()
             } catch (_: IndexOutOfBoundsException) {
-                onError(".sprite must be accompanied by a parameter specifying number of rows", i.adjustForBlanks())
-                break
+                error(".sprite must be accompanied by a parameter specifying number of rows", indexes[l])
+                return sprites
             } catch (e: NumberFormatException) {
-                onError(".sprite: ${e.message}", i.adjustForBlanks())
-                break
+                error(".sprite: ${e.message}", indexes[l])
+                return sprites
             }
 
-            if (++i >= code.size) {
-                onError(".sprite is used at the end of a line", i.adjustForBlanks())
-                break
+            if (numRows < 1 || numRows > 15) {
+                error(".sprite number of rows must be a number in the range 1..15", indexes[l])
+                return sprites
             }
 
-            if (!code[i].matches(Regex("${Chip8Assembler.identifierRegex}:"))) {
-                onError(".sprite must be followed by a label", i.adjustForBlanks())
-                break
+            if (++l >= lines.size) {
+                error(".sprite used at the end of a line", indexes[l])
+                return sprites
             }
 
-            val label = code[i].substringBefore(':')
+            if (!lines[l].matches(Regex("${Chip8Assembler.identifierRegex}:\\s*"))) {
+                error(".sprite must be immediately followed by a valid label", indexes[l])
+                return sprites
+            }
+
+            val label = lines[l].substringBefore(':')
             val rows = ArrayList<BooleanArray>(numRows)
-            while (++i < code.size && code[i].startsWith("db") && rows.size < numRows) {
-
+            while (++l < lines.size && lines[l].startsWith("db") && rows.size < numRows) {
                 val literals = try {
-                    code[i]
+                    lines[l]
                         .removePrefix("db")
                         .replace(" ", "")
                         .split(',')
                         .filter { it.isNotBlank() }
                         .map { it.decodeLiteral()!! }
                 } catch (_: NullPointerException) {
-                    onError(".sprite: db must contain a literal", i.adjustForBlanks())
-                    break@outer
+                    error(".sprite: db contain invalid literal(s)", indexes[l])
+                    return sprites
                 }
 
-                for (literal in literals) {
+                literals.forEach { literal ->
                     val row = BooleanArray(8)
 
                     for(bit in 0..7) {
@@ -285,11 +277,13 @@ class Chip8IdeManager {
             }
 
             if (rows.size < numRows) {
-                onError("Insufficient sprite data rows, it was specified $numRows but only found ${rows.size}", i.adjustForBlanks())
-                break
+                error("Insufficient sprite data rows, it was specified $numRows but only found ${rows.size}", indexes[l-1])
+                return sprites
+            } else if (rows.size > numRows) {
+                rows.dropLast(rows.size-numRows)
             }
 
-            sprites.add(Pair(label, BooleanArray(rows.size*8) { rows[it / 8][it%8] } ))
+            sprites.add(Pair(label, BooleanArray(rows.size*8) { rows[it/8][it%8] } ))
         }
 
         return sprites

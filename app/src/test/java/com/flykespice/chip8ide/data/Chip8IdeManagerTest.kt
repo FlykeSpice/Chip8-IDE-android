@@ -41,10 +41,26 @@ class Chip8IdeManagerTest {
     @Test
     fun getSprites() {
         chip8IdeManager.updateCode(test)
-        val result = chip8IdeManager.getSprites { _,_ -> }
+        val result = chip8IdeManager.getSprites()
 
         assertEquals(2, result.size)
         assertEquals( 4, result[0].second.size / 8)
         assertTrue(result[0].second.contentEquals(expected))
+    }
+
+    @Test
+    fun getSprites_errors_onInsufficientSpriteData() {
+        chip8IdeManager.setIdeState(IdeState.idle())
+        chip8IdeManager.updateCode(
+            """
+                .sprite 15
+                foo:
+                db #ff, #ff
+            """.trimIndent()
+        )
+
+        val test = chip8IdeManager.getSprites()
+        assertTrue(test.isEmpty())
+        assertTrue(chip8IdeManager.ideState.value is IdeState.error)
     }
 }
