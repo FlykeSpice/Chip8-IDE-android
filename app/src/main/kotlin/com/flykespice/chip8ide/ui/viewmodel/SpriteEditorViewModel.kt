@@ -9,10 +9,22 @@ class SpriteEditorViewModel(private val chip8IdeManager: Chip8IdeManager) : View
     private var _editingSprite = MutableStateFlow(BooleanArray(0))
     val editingSprite get() = _editingSprite.asStateFlow()
 
+    private var _label = MutableStateFlow("")
+    val label get() = _label.asStateFlow()
+
+    fun loadSprite(label: String, sprite: BooleanArray) {
+        _label.value = label
+        _editingSprite.value = sprite.copyOf()
+    }
+
     fun edit(x: Int, y: Int, value: Boolean) {
         val copy = _editingSprite.value.copyOf()
-        copy[x*8+y] = value
+        copy[(y*8)+x] = value
         _editingSprite.value = copy
+    }
+
+    fun changeLabel(label: String) {
+        _label.value = label
     }
 
     fun resizeHeight(h: Int) {
@@ -21,7 +33,7 @@ class SpriteEditorViewModel(private val chip8IdeManager: Chip8IdeManager) : View
         _editingSprite.value = new
     }
 
-    fun submit(label: String) {
-        chip8IdeManager.updateSprite(label, _editingSprite.value)
+    fun submit() {
+        chip8IdeManager.updateSprite(_label.value, _editingSprite.value)
     }
 }

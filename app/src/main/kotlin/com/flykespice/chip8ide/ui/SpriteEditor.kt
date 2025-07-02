@@ -1,6 +1,5 @@
 package com.flykespice.chip8ide.ui
 
-import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -98,21 +97,19 @@ fun SpriteEditorBrowser(
 fun SpriteEditorScreen(
     label: String,
     sprite: BooleanArray,
-    onClickSubmit : () -> Unit,
+    onEditSprite: (Int, Int, Boolean) -> Unit,
+    onChangeLabel: (String) -> Unit,
+    onResizeSprite: (Int) -> Unit,
+    onClickSubmit: () -> Unit,
     //onLabelChanged: (String) -> Unit
 ) {
-    var label by remember { mutableStateOf(label) }
-    val sprite = remember { mutableStateOf(sprite) }
     var pencil by remember { mutableStateOf(false) }
 
     var openedResizeDialog by remember { mutableStateOf(false) }
     if (openedResizeDialog) {
         ResizeDialog(
-            sprite = sprite.value,
-            onResize = {
-                sprite.value = sprite.value.copyOf(it*8)
-                openedResizeDialog = false
-            },
+            sprite = sprite,
+            onResize = { onResizeSprite(it); openedResizeDialog = false },
             onCancel = { openedResizeDialog = false }
         )
     }
@@ -132,7 +129,7 @@ fun SpriteEditorScreen(
                 val focusRequester = remember { FocusRequester() }
 
                 OutlinedTextField(
-                    tempLabel,
+                    value = tempLabel,
                     modifier = Modifier
                         .focusRequester(focusRequester)
                         .weight(3f),
@@ -140,7 +137,7 @@ fun SpriteEditorScreen(
                     textStyle = MaterialTheme.typography.headlineMedium,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
-                        onDone = {label = tempLabel; editLabelMode = false}
+                        onDone = { onChangeLabel(tempLabel); editLabelMode = false }
                     ),
                     singleLine = true
                 )
@@ -155,9 +152,7 @@ fun SpriteEditorScreen(
             }
 
             IconButton(
-                onClick = {
-                    editLabelMode = !editLabelMode
-                },
+                onClick = { editLabelMode = !editLabelMode },
                 modifier = Modifier.weight(0.3f)
             ) {
                 Icon(painterResource(R.drawable.edit_24px), "click to edit label's name")
@@ -171,22 +166,10 @@ fun SpriteEditorScreen(
                 .align(alignment = Alignment.CenterHorizontally),
             //shape = MaterialTheme.shapes.medium
         ) {
-
-            val onClicked = remember {
-                { x: Int, y: Int ->
-                    sprite.value = sprite.value
-                        .copyOf()
-                        .apply {
-                            Log.d("onClicked", "x = $x y = $y")
-                            this[(y*8)+x] = pencil
-                        }
-                }
-            }
-
             SpriteEditorCanvas(
-                sprite = sprite.value,
+                sprite = sprite,
                 modifier = Modifier.fillMaxSize(),
-                onClicked = onClicked
+                onClicked = { x, y -> onEditSprite(x, y, pencil) }
             )
         }
 
@@ -422,7 +405,14 @@ private fun SpriteEditorPreview() {
 
     Chip8IDETheme {
         Surface (Modifier.fillMaxSize()) {
-            SpriteEditorScreen(label = "sprite_test_foo", sprite = test, onClickSubmit = {})
+            SpriteEditorScreen(
+                label = "sprite_test_foo",
+                sprite = test,
+                onEditSprite = { _,_,_, -> },
+                onChangeLabel = {},
+                onResizeSprite = {},
+                onClickSubmit = {}
+            )
         }
     }
 }

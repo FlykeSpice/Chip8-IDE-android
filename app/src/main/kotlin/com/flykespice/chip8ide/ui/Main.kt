@@ -342,16 +342,24 @@ fun MainScreen(
                             }
 
                             "sprite_editor" -> NavEntry(key) {
-                                val spriteViewModel = koinViewModel<SpriteEditorViewModel>()
-
-                                //Go to editor with
                                 if (currentLabel == null)
                                     throw IllegalStateException("Navigated to graphics/editor composable without a label or sprite")
 
+                                val spriteViewModel = koinViewModel<SpriteEditorViewModel>()
+                                val sprite by spriteViewModel.editingSprite.collectAsState()
+                                val label by spriteViewModel.label.collectAsState()
+
+                                LaunchedEffect(true) {
+                                    spriteViewModel.loadSprite(currentLabel!!, currentSprite)
+                                }
+
                                 SpriteEditorScreen(
-                                    label = currentLabel!!,
-                                    sprite = currentSprite,
-                                    onClickSubmit = { spriteViewModel.submit(currentLabel!!); backstack.removeLastOrNull() }
+                                    label = label,
+                                    sprite = sprite,
+                                    onEditSprite   = spriteViewModel::edit,
+                                    onChangeLabel  = spriteViewModel::changeLabel,
+                                    onResizeSprite = spriteViewModel::resizeHeight,
+                                    onClickSubmit  = { spriteViewModel.submit(); backstack.removeLastOrNull() }
                                 )
                             }
 

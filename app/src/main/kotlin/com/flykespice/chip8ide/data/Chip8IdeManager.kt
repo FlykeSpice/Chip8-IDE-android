@@ -136,8 +136,7 @@ class Chip8IdeManager {
 
         var newLiteral = 0
         for (i in sprite.indices) {
-
-            if (i != 0 && (i % 7) == 0) {
+            if (i != 0 && (i % 8) == 0) {
                 newLines.add("db 0b"+newLiteral.toString(2).padStart(8,'0'))
                 newLiteral = 0
             }
@@ -178,10 +177,13 @@ class Chip8IdeManager {
         if (remainingBytes > 0)
             TODO("Deal with the exceptional case when we're at the end of code and there is less line than needed for .sprite directive")
 
+        //Adjust the .sprite directive to new height
+        newLines[lineLabel-1] = ".sprite ${sprite.size/8}"
+
         _code.value = newLines.joinToString("\n")
     }
 
-    fun createNewSprite(label: String, sprite: BooleanArray) {
+    private fun createNewSprite(label: String, sprite: BooleanArray) {
         val lines = _code.value.lines()
         val newLines = ArrayList(lines)
 
