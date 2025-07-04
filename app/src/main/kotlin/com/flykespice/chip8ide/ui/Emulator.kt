@@ -42,7 +42,6 @@ private fun EmulatorUIPreview() {
             paused = paused,
             onClickReset = {},
             onClickPause = {},
-            chooseFile = {},
             setKey = {_, _ -> },
             paddingValues = PaddingValues(0.dp)
         )
@@ -56,7 +55,6 @@ fun EmulatorUI(
     onClickReset: () -> Unit,
     onClickPause: (Boolean) -> Unit,
     setKey: (Int, Boolean) -> Unit,
-    chooseFile: () -> Unit,
     paddingValues: PaddingValues
 ) {
     Surface(modifier = Modifier
@@ -91,7 +89,7 @@ fun EmulatorUI(
             }
 
             Surface(modifier = Modifier.weight(0.1f)) {
-                EmulationControls(paused = paused, reset = onClickReset, pause = onClickPause, chooseFile = chooseFile)
+                EmulationControls(paused = paused, onClickReset = onClickReset, onClickPause = onClickPause)
             }
 
             Surface(
@@ -109,26 +107,18 @@ fun EmulatorUI(
 @Composable
 private fun EmulationControls (
     paused: Boolean,
-    reset: () -> Unit,
-    pause: (Boolean) -> Unit,
-    chooseFile: () -> Unit
+    onClickReset: () -> Unit,
+    onClickPause: (Boolean) -> Unit
 ) {
 
     Row {
-
-        Button(onClick = chooseFile) {
-            Icon(painterResource(R.drawable.folder_24px), "")
-        }
-
-        Spacer(modifier = Modifier.padding(10.dp))
-
-        Button(onClick = { pause(!paused) }) {
+        Button(onClick = { onClickPause(!paused) }) {
             Icon(painterResource(if (paused) R.drawable.play_arrow_24px else R.drawable.pause_24px), contentDescription = null)
         }
 
         Spacer(modifier = Modifier.padding(10.dp))
 
-        Button(onClick = reset) {
+        Button(onClick = onClickReset) {
             Icon(painterResource(R.drawable.refresh_24px), "Reset")
         }
     }

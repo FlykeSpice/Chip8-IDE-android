@@ -379,8 +379,7 @@ fun MainScreen(
                         paused = paused,
                         onClickReset = emulatorViewModel::reset,
                         onClickPause = emulatorViewModel::pause,
-                        setKey = emulatorViewModel::setKey,
-                        chooseFile = {},
+                        setKey       = emulatorViewModel::setKey,
                         paddingValues = paddingValues
                     )
                 }
