@@ -24,8 +24,19 @@ jobs:
       run: chmod +x gradlew
     - name: Gradle build release apk
       run: ./gradlew assembleRelease
+
+    - uses: r0adkll/sign-android-release@v1
+      name: Sign app APK
+      # ID used to access action output
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+        alias: ${{ secrets.KEY_ALIAS }}
+        keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+
     - uses: actions/upload-artifact@v4
       with:
         name: chip8-ide-release
         path: app/build/outputs/apk/release/
-      
